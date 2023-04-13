@@ -1,0 +1,57 @@
+import optimize 
+import meshtools 
+import optimizationadapter
+
+// Build mesh 
+var mb = MeshBuilder() 
+mb.addvertex([0,0])
+mb.addvertex([1,0])
+mb.addvertex([0,1])
+mb.addface([0,1,2])
+var m = mb.build() 
+m.addgrade(1)
+
+// Create a Field 
+var n = Field(m, Matrix([1,0,0]) )
+n[1]=Matrix([0,1,0])
+n[2]=Matrix([0,0,1])
+
+// Set up a demo problem 
+var problem = OptimizationProblem(m)
+
+var ll = Length() 
+problem.addenergy(ll)
+
+var lel = Nematic(n)
+problem.addenergy(lel)
+
+var la = Area() 
+problem.addconstraint(la)
+
+var lx = AreaIntegral(fn (x, n) n.inner(n), n)
+problem.addconstraint(lx, field=n)
+
+// Test the MeshAdapter 
+var adapt = MeshAdapter(problem, m)
+
+print adapt.get() // Get parameters 
+
+print adapt.value() // Find the value 
+
+print adapt.gradient() // Find gradient wrt mesh coordinates 
+
+print adapt.constraintvalue() // Show constraint values
+
+print adapt.constraintgradient()[0] // Show constraint gradients 
+
+var fadapt = FieldAdapter(problem, n)
+
+print fadapt.get() // Get parameters 
+
+print fadapt.value() // Find the value 
+
+print fadapt.gradient() // Find gradient wrt field DOFs
+
+print fadapt.constraintvalue() // Show constraint values
+
+print fadapt.constraintgradient() // Show constraint gradients 
