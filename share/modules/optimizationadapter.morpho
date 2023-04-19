@@ -36,7 +36,6 @@ class OptimizationAdapter {
 
   set(x) { return nil }               // Sets the parameters 
   get() { return 0 }                  // Returns current value of the parameters
-  getMatrix() {return nil}            // Returns current vectormatrix of the mesh
 
   value() { return 0 }                // Returns the current value of the objective function at the current parameters
   gradient() { return nil }           // Returns the gradient of the objective function at the current parameters as a column vector
@@ -44,6 +43,27 @@ class OptimizationAdapter {
 
   constraintvalue() { return nil }    // Returns the value(s) of any constraints in a List 
   constraintgradient() { return nil } // Returns the gradient(s) of any constraints as a List of column vectors
+}
+
+/* -------------------------
+ * FunctionAdapter 
+ * ------------------------- */
+
+class FunctionAdapter is OptimizationAdapter {
+  init(target, gradient=nil, start=nil, constraints=nil, constraintgradients=nil) {
+    super.init(target)
+    self.x = start
+    if (gradient) self.gradfn = gradient 
+  }
+
+  set(x) { self.x = x }
+  get(x) { return self.x }
+
+  value() { return self.target(self.x) }
+  gradient() { return self.gradfn(self.x) }
+
+  constraintvalue() { return nil }   
+  constraintgradient() { return nil }
 }
 
 /* -------------------------
