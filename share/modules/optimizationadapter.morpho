@@ -185,7 +185,7 @@ class MeshAdapter is ProblemAdapter {
 
 class FieldAdapter is ProblemAdapter {
   set(x) { // updates the field with a linearized Matrix
-    self.target._linearize().assign(x)
+    self.target.__linearize().assign(x)
     return nil 
   }
 
