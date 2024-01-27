@@ -1,0 +1,233 @@
+/* ************************************************************
+ * OptimizationAdapter
+ * ************************************************************ */ 
+
+/* ************************************************************
+ * Errors
+ * ************************************************************ */ 
+
+var _NoActiveFunctionalsErr = Error("NoActiveFunctionals", "Problem has no active functionals.")
+
+/* ************************************************************
+ * Utility functions
+ * ************************************************************ */ 
+
+fn _columnize(matrix) { // Reshape a rectangular matrix into a column matrix 
+  var dim = matrix.dimensions() 
+
+  matrix.reshape(dim[0]*dim[1],1)
+  return nil 
+}
+
+fn _decolumnize(matrix, dim) { // Reshape a matrix from a column matrix to a rectangular matrix
+  matrix.reshape(dim[0], dim[1])
+  return nil 
+}
+
+/* ************************************************************
+ * OptimizationAdapter
+ * ************************************************************ */ 
+
+/* OptimizationAdapters provide a common interface that enables optimization algorithms to obtain 
+   necessary information about the an optimization problem. */
+
+class OptimizationAdapter {
+  init(target) { self.target = target }
+
+  set(x) { return nil }               // Sets the parameters 
+  get() { return 0 }                  // Returns current value of the parameters
+
+  value() { return 0 }                // Returns the current value of the objective function at the current parameters
+  gradient() { return nil }           // Returns the gradient of the objective function at the current parameters as a column vector
+  hessian() { return nil }            // (Optional) Returns the hessian of the objective function at the current parameters
+
+  constraintvalue() { return nil }    // Returns the value(s) of any constraints in a List 
+  constraintgradient() { return nil } // Returns the gradient(s) of any constraints as a List of column vectors
+}
+
+/* -------------------------
+ * FunctionAdapter 
+ * ------------------------- */
+
+class FunctionAdapter is OptimizationAdapter {
+  init(target, gradient=nil, start=nil, constraints=nil, constraintgradients=nil) {
+    super.init(target)
+    self.x = start
+    if (gradient) self.gradfn = gradient 
+    else self.gradfn = self._numericalgrad
+  }
+
+  _listify(x) { // Converts an enumerable to a list
+    var l = []
+    for (e in x) l.append(e)
+    return l 
+  }
+
+  _numericalgrad(...u) { // Numerical gradient
+    @
+    //print u
+    //var grad = Matrix(x.count())
+    return nil 
+  }
+
+  set(x) { self.x = x }
+  get() { return self.x }
+
+  value() { return apply(self.target, self._listify(self.x)) }
+  gradient() { return apply(self.gradfn, self._listify(self.x)) }
+
+  constraintvalue() { return nil }   
+  constraintgradient() { return nil }
+}
+
+/* -------------------------
+ * ProblemAdapter 
+ * ------------------------- */
+
+class ProblemAdapter is OptimizationAdapter {
+  init(problem, target) {
+    super.init(target)
+    self.problem = problem 
+    if (!islist(self.problem.energies) || self.problem.energies.count()==0) _NoActiveFunctionalsErr.throw()
+  }
+
+  energies() { return self.problem.energies }       // Obtain energies and constraints from the problem 
+  constraints() { return self.problem.constraints }
+
+  includefunctional(func) { return true } // Does a functional depend on the target? 
+  includeconstraint(cons) { return true } // Does a constraint refer to the target? 
+
+  valueForFunctional(func) { // Calculates the value of a given Functional object 
+    var val
+    if (func.selection) {
+      val=func.functional.total(self.target, func.selection)
+    } else {
+      val=func.functional.total(self.target)
+    }
+    if (func.prefactor) val*=func.prefactor
+    return val
+  }
+
+  gradientForFunctional(func) { return nil } // Calculates the gradient of a given Functional object wrt the target 
+
+  value() { 
+    var energy = 0
+    for (en in self.energies()) {
+      if (!self.includefunctional(en)) continue 
+      energy+=self.valueForFunctional(en)
+    }
+    return energy
+  }
+
+  gradient() {
+    var grad 
+    for (en in self.energies()) {
+      if (!self.includefunctional(en)) continue 
+      grad+=self.gradientForFunctional(en)
+    }
+    _columnize(grad)
+    return grad
+  }
+
+  constraintvalue() {
+    var cval = []
+    for (cons in self.constraints()) {
+      if (!self.includeconstraint(cons)) continue 
+      cval.append(self.valueForFunctional(cons))
+    }
+    return cval 
+  }
+
+  constraintgradient() {
+    var cgrad = []
+    for (en in self.constraints()) {
+      if (!self.includeconstraint(en)) continue 
+      var grad=self.gradientForFunctional(en)
+      _columnize(grad)
+      cgrad.append(grad)      
+    }
+    return cgrad
+  }
+}
+
+/* -------------------------
+ * MeshAdapter 
+ * ------------------------- */
+
+class MeshAdapter is ProblemAdapter {
+  set(x) { // x is a column matrix 
+    var mat = self.target.vertexmatrix()
+    var dim = mat.dimensions() 
+    _columnize(mat)
+    mat.assign(x)
+    _decolumnize(mat, dim)
+    return nil  
+  }
+
+  get() { // grabs the mesh 
+    var mat = self.target.vertexmatrix().clone()
+    _columnize(mat)
+    return mat 
+  }
+
+  getMatrix() { // grabs the mesh 
+    var mat = self.target.vertexmatrix().clone()
+    return mat 
+  }
+
+  getMesh(){
+    return self.target
+  }
+
+  gradientForFunctional(func) { 
+    var val
+    if (func.selection) {
+      val=func.functional.gradient(self.target, func.selection)
+    } else {
+      val=func.functional.gradient(self.target)
+    }
+    if (func.prefactor) val*=func.prefactor
+    return val
+  }
+
+  includeconstraint(c) { return (c.field==nil) }
+}
+
+/* -------------------------
+ * FieldAdapter 
+ * ------------------------- */
+
+class FieldAdapter is ProblemAdapter {
+  set(x) { // updates the field with a linearized Matrix
+    self.target.__linearize().assign(x)
+    return nil 
+  }
+
+  get() { // grabs the linearized field
+    return self.target.linearize()
+  }
+
+  getField() { // grabs the linearized field
+    return self.target
+  }
+
+  gradientForFunctional(func) { 
+    var grad
+    if (func.selection) {
+      grad=func.functional.fieldgradient(self.target, self.problem.mesh, func.selection)
+    } else {
+      grad=func.functional.fieldgradient(self.target, self.problem.mesh)
+    }
+    if (func.prefactor) grad*=func.prefactor
+    return grad.linearize() 
+  }
+
+  includefunctional(en) {
+    if (!en.functional.has("field")) return false 
+    var fld = en.functional.field 
+    if (islist(fld)) return fld.ismember(self.target)
+    return (fld==self.target)
+  }
+
+  includeconstraint(c) { return (c.field==self.target) }
+}
