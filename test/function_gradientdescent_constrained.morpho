@@ -84,8 +84,7 @@ var control = ProjectedGradientDescentController(adapt)
 
 control.optimize(100)
 
-print "--"
-print adapt.constraintvalue()
+print "Final constraint norm: ${Matrix(adapt.constraintvalue()).norm()}"
 
-print "--"
+print "Solution:"
 print adapt.get()
