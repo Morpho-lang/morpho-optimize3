@@ -73,10 +73,10 @@ class ProjectedGradientDescentController is GradientDescentController {
 
     return false  
   }
-
+  
 }
 
-var start = Matrix([1,0])
+var start = Matrix([0.5,0.5])
 
 var adapt = FunctionAdapter(func, start=start, constraints = [g])
 
