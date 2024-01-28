@@ -2,3 +2,66 @@
  * OptimizationController
  * ************************************************************ */ 
 
+class OptimizationController {
+  init(adapter, start, quiet=false) { 
+    self.adapter = adapter
+    self.quiet = quiet
+    self.gradtol = 1e-6 // Halting criterion based on norm of the gradient
+
+    self._param = start 
+    self._value = nil    // Current value 
+    self._gradient = nil // Current gradient 
+  } 
+
+  value() { // Find the value of the objective function
+    self._value = self.adapter.value(self._param)
+    return self._value 
+  }
+
+  gradient() { // Calculate the gradient of the objective function
+    self._gradient = self.adapter.gradient(self._param)
+  }
+
+  hasconverged() { // Check convergence
+    return self._gradient.norm()<self.gradtol
+  }
+
+  report(iter) { // Report on current state of the optimizer 
+    if (!self.quiet) print "Iteration ${iter}: ${self._value}, |grad| = ${self._gradient.norm()}, stepsize=${self.stepsize}"   // Report 
+  }
+}
+
+class GradientDescentController is OptimizationController {
+  init(adapter, start, quiet=false, stepsize=0.1) { 
+    self.stepsize=stepsize
+    self._gradient = nil 
+    self._direction = nil 
+    super.init(adapter, start, quiet=quiet)
+  }
+
+  storegradient() {
+    self._odirection=self._direction
+    self._ogradient=self._gradient
+  }
+
+  searchdirection() { // Determine the search direction
+    self.storegradient() 
+    self.gradient() 
+    self._direction = -self._gradient
+  }
+
+  step() {            // Take a step 
+    self._param+=self.stepsize*self._direction                  
+  }
+
+  optimize(nsteps) {  // Optimization loop
+    self.value()
+    for (i in 1..nsteps) {
+      self.searchdirection() 
+      self.step() 
+      self.value()
+      self.report(i) 
+      if (self.hasconverged()) return 
+    }
+  }
+}

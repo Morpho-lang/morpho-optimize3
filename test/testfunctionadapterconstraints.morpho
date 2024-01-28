@@ -1,0 +1,22 @@
+// Test the FunctionAdapter with a constraint
+
+import optimizationadapter
+
+fn func(x, y) {
+    return (x-0.5)^2 + (y-1)^2
+}
+
+fn c(x,y) {
+    return x + 0.5*y - 1
+}
+
+var adapt = FunctionAdapter(func, start=Matrix([2,1]), constraints=[c])
+
+print adapt.constraintvalue()
+// expect: [ 1.5 ]
+
+for (grad in adapt.constraintgradient()) {
+    print grad 
+}
+// expect: [ 1 ]
+// expect: [ 0.5 ]
