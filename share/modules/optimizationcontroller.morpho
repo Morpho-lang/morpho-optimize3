@@ -7,6 +7,7 @@
  * -------------------------- */ 
 
 
+
 /* --------------------------
  * OptimizationController 
  * -------------------------- */ 
@@ -19,9 +20,12 @@ class OptimizationController {
     self.adapter = adapter
     self.quiet = quiet
     self.gradtol = 1e-6 // Halting criterion based on norm of the gradient
+    self.etol = 1e-8 // Halting criterion based on change in value of objective function
+    self.ctol = 1e-10 // Constraint tolerance
 
     self._value = 0    // Current value 
     self._gradient = nil // Current gradient 
+    self._direction = nil // Current gradient 
   } 
 
   value() { // Calculate the value of the objective function
@@ -35,6 +39,7 @@ class OptimizationController {
 
   hasconverged() { // Check convergence
     if (!self._gradient) self.gradient()
+
     return self._gradient.norm()<self.gradtol
   }
 
@@ -67,11 +72,14 @@ class GradientDescentController is OptimizationController {
     self.adapter.set(x)
   }
 
+  reproject() { }
+
   optimize(nsteps) {  // Optimization loop
     self.value()
     self.searchdirection() 
     for (i in 1..nsteps) {
       self.step() 
+      self.reproject() 
       self.value()
       self.searchdirection() // Also updates gradient
       self.report(i) 
