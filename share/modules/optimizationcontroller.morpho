@@ -2,27 +2,39 @@
  * OptimizationController
  * ************************************************************ */ 
 
+/* --------------------------
+ * Errors
+ * -------------------------- */ 
+
+
+/* --------------------------
+ * OptimizationController 
+ * -------------------------- */ 
+
+/* OptimizationController implement an optimization algorithm, 
+   working by invoking the interface of an OptimizationAdapter. */
+
 class OptimizationController {
-  init(adapter, start, quiet=false) { 
+  init(adapter, quiet=false) { 
     self.adapter = adapter
     self.quiet = quiet
     self.gradtol = 1e-6 // Halting criterion based on norm of the gradient
 
-    self._param = start 
-    self._value = nil    // Current value 
+    self._value = 0    // Current value 
     self._gradient = nil // Current gradient 
   } 
 
-  value() { // Find the value of the objective function
-    self._value = self.adapter.value(self._param)
+  value() { // Calculate the value of the objective function
+    self._value=self.adapter.value()
     return self._value 
   }
 
   gradient() { // Calculate the gradient of the objective function
-    self._gradient = self.adapter.gradient(self._param)
+    self._gradient = self.adapter.gradient()
   }
 
   hasconverged() { // Check convergence
+    if (!self._gradient) self.gradient()
     return self._gradient.norm()<self.gradtol
   }
 
@@ -31,37 +43,84 @@ class OptimizationController {
   }
 }
 
-class GradientDescentController is OptimizationController {
-  init(adapter, start, quiet=false, stepsize=0.1) { 
-    self.stepsize=stepsize
-    self._gradient = nil 
-    self._direction = nil 
-    super.init(adapter, start, quiet=quiet)
-  }
+/* -----------------------------------------
+ * GradientDescentController
+ * 
+ * Simple gradient descent at fixed stepsize 
+ * ----------------------------------------- */ 
 
-  storegradient() {
-    self._odirection=self._direction
-    self._ogradient=self._gradient
+class GradientDescentController is OptimizationController {
+  init(adapter, quiet=false, stepsize=0.1) { 
+    super.init(adapter, quiet=quiet)
+    self.stepsize=stepsize
+    self._direction=nil 
   }
 
   searchdirection() { // Determine the search direction
-    self.storegradient() 
     self.gradient() 
     self._direction = -self._gradient
   }
 
-  step() {            // Take a step 
-    self._param+=self.stepsize*self._direction                  
+  step() { // Take a step in the current search direction
+    var x = self.adapter.get() 
+    x+=self.stepsize*self._direction
+    self.adapter.set(x)
   }
 
   optimize(nsteps) {  // Optimization loop
     self.value()
+    self.searchdirection() 
     for (i in 1..nsteps) {
-      self.searchdirection() 
       self.step() 
       self.value()
+      self.searchdirection() // Also updates gradient
       self.report(i) 
       if (self.hasconverged()) return 
     }
+  }
+}
+
+/* -----------------------------------------
+ * LineSearchController
+ * 
+ * Gradient descent with linesearches
+ * ----------------------------------------- */ 
+
+class LineSearchController is GradientDescentController {
+  init(adapter, quiet=false, stepsize=0.1) {
+    super.init(adapter, quiet=quiet)
+    self.maxsteps = 50 // Maximum steps for reducing stepsize
+    self.alpha = 0.2 // } Coefficients 
+    self.beta = 0.5  // }
+  }
+
+  expecteddescent() { // Predict expected descent
+    self.df = self._gradient.inner(self._direction)
+  }
+
+  accept(t) {         // Have we descended sufficiently?
+    return self._value < self._ovalue + self.alpha*t*self.df
+  }
+
+  stepwith(x0, t) {       // Take a step of size t from x0 in the descent direction
+    var x = x0 + t*self._direction
+    self.adapter.set(x)
+
+    return self.value()
+  }
+
+  step() {            // Perform a single linesearch
+    self.expecteddescent() 
+    var t=1
+    self._ovalue = self._value          // Save value for comparison
+
+    var x0 = self.adapter.get() 
+    for (nsteps in 1..self.maxsteps) {
+        self.stepwith(x0, t)
+        if (self.accept(t)) break
+        t*=self.beta
+    }
+    print t 
+    self.stepsize=t
   }
 }
