@@ -1,4 +1,4 @@
-// Test the FunctionAdapter on a simple quadratic 
+// Test the FunctionAdapter on a simple quadratic with a linear constraint
 
 import optimizationadapter
 import optimizationcontroller
