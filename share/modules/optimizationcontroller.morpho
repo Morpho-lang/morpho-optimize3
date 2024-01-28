@@ -98,21 +98,21 @@ class LineSearchController is GradientDescentController {
     self.df = self._gradient.inner(self._direction)
   }
 
-  accept(t) {         // Have we descended sufficiently?
+  accept(t) { // Have we descended sufficiently?
     return self._value < self._ovalue + self.alpha*t*self.df
   }
 
-  stepwith(x0, t) {       // Take a step of size t from x0 in the descent direction
+  stepwith(x0, t) { // Take a step of size t from x0 in the descent direction
     var x = x0 + t*self._direction
     self.adapter.set(x)
 
     return self.value()
   }
 
-  step() {            // Perform a single linesearch
+  step() {// Perform a single linesearch
     self.expecteddescent() 
     var t=1
-    self._ovalue = self._value          // Save value for comparison
+    self._ovalue = self._value // Save value for comparison
 
     var x0 = self.adapter.get() 
     for (nsteps in 1..self.maxsteps) {
@@ -120,7 +120,58 @@ class LineSearchController is GradientDescentController {
         if (self.accept(t)) break
         t*=self.beta
     }
-    print t 
     self.stepsize=t
+  }
+}
+
+/* -----------------------------------------
+ * ConjugateGradientController
+ * 
+ * Conjugate gradient with linesearch
+ * ----------------------------------------- */ 
+
+class ConjugateGradientController is LineSearchController {
+  init(adapter, quiet=false, stepsize=0.1) {
+    super.init(adapter, quiet=quiet)
+    self._odirection = nil 
+    self._ogradient = nil 
+  }
+
+  storegradient() {
+    self._odirection=self._direction
+    self._ogradient=self._gradient
+  }
+
+  fletcherreeves() {
+    var beta = self._gradient.inner(self._gradient)/self._ogradient.inner(self._ogradient)
+    return beta
+  }
+
+  polackribierre() {
+    var y = self._gradient - self._ogradient
+    var beta = self._gradient.inner(y)/self._ogradient.inner(self._ogradient)
+    return beta 
+  }
+
+  hagerzhang() {
+    var y = self._gradient - self._ogradient
+    var dxy = self._odirection.inner(y)
+    if (abs(dxy)<1e-10) return -1
+    var beta = (y - 2*y.inner(y)*self._odirection/dxy).inner(self._ogradient)/dxy
+    return beta 
+  }
+
+  searchdirection() {
+    super.searchdirection() // Calculate new descent direction
+    if (!self._odirection) { // First iteration
+        self.storegradient()
+        return 
+    }
+
+    var beta = self.fletcherreeves()
+    if (beta<0) return
+
+    self._direction+=beta*self._odirection
+    self.storegradient()
   }
 }
