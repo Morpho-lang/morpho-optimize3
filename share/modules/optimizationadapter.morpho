@@ -25,6 +25,7 @@ class OptimizationAdapter {
   gradient() { return nil }           // Returns the gradient of the objective function at the current parameters as a column vector
   hessian() { return nil }            // (Optional) Returns the hessian of the objective function at the current parameters as a matrix
 
+  isconstrained() { return false }    // Returns whether constraints are present
   constraintvalue() { return nil }    // Returns the value(s) of any constraints as a column vector
   constraintgradient() { return nil } // Returns the gradient(s) of any constraints as a matrix
 }
@@ -94,6 +95,10 @@ class FunctionAdapter is OptimizationAdapter {
 
   value() { return apply(self.target, self._listify(self.x)) }
   gradient() { return apply(self.gradfn, self._listify(self.x)) }
+
+  isconstrained() {
+    return (self.constraints!=nil)
+  }
 
   constraintvalue() { 
     if (!self.constraints) return nil 

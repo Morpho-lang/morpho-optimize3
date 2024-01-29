@@ -2,6 +2,8 @@
  * OptimizationController
  * ************************************************************ */ 
 
+var _eps = 1e-16
+
 /* --------------------------
  * Errors
  * -------------------------- */ 
@@ -24,6 +26,7 @@ class OptimizationController {
     self.ctol = 1e-10 // Constraint tolerance
 
     self._value = 0    // Current value 
+    self._valuehistory=[]
     self._gradient = nil // Current gradient 
     self._direction = nil // Current gradient 
   } 
@@ -38,13 +41,33 @@ class OptimizationController {
   }
 
   hasconverged() { // Check convergence
-    if (!self._gradient) self.gradient()
+    // Convergence in value 
+    if (self._valuehistory && self._valuehistory.count()>1) {
+      // Compute relative change in value, or use absolute value if close to zero
+      var de = abs(self._valuehistory[-1]-self._valuehistory[-2])
+      if (abs(self._valuehistory[-1])>1e-16) de/=self._valuehistory[-1]
 
-    return self._gradient.norm()<self.gradtol
+      if (de < self.etol) return true 
+    }
+
+    // Convergence in |gradient|
+    if (self._gradient) return (self._gradient.norm()<self.gradtol)
+    
+    return false 
+  }
+
+  record() { // Record information about the iteration
+    self._valuehistory.append(self._value)
   }
 
   report(iter) { // Report on current state of the optimizer 
-    if (!self.quiet) print "Iteration ${iter}: ${self._value}, |grad| = ${self._gradient.norm()}, stepsize=${self.stepsize}"   // Report 
+    var constraintreport = ""
+    if (self.adapter.isconstrained()) {
+      var cval = Matrix(self.adapter.constraintvalue())
+      if (cval) constraintreport=", |cons| = ${cval.norm()}"
+    }
+
+    if (!self.quiet) print "Iteration ${iter}: ${self._value}, |grad| = ${self._gradient.norm()}${constraintreport}, stepsize=${self.stepsize}"   // Report 
   }
 }
 
@@ -83,6 +106,7 @@ class GradientDescentController is OptimizationController {
       self.value()
       self.searchdirection() // Also updates gradient
       self.report(i) 
+      self.record()
       if (self.hasconverged()) return 
     }
   }

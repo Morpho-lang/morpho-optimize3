@@ -13,7 +13,7 @@ fn g(x, y, z) {
 
 var _MaxIterCons = Error("MaxIterCons", "Too many steps in constraint satisfaction.")
 
-class ProjectedGradientDescentController is GradientDescentController {
+class ProjectedLineSearchController is LineSearchController {
   init(adapter, quiet=false, stepsize=0.1) { 
     super.init(adapter, quiet=quiet, stepsize=stepsize)
     self.maxconstraintsteps = 100
@@ -56,13 +56,14 @@ class ProjectedGradientDescentController is GradientDescentController {
 
     _MaxIterCons.warning("Maximum number of constraint steps exceeded without achieving the constraint tolerance of ${self.ctol} (residual is ${dv.norm()}). Try setting 'maxconstraintsteps' to more than ${self.maxconstraintsteps}, or increase constraint tolerance.")
   }
+  
 }
 
 var start = Matrix([0.5,0.5,0])
 
 var adapt = FunctionAdapter(func, start=start, constraints = [g])
 
-var control = ProjectedGradientDescentController(adapt)
+var control = ProjectedLineSearchController(adapt)
 
 control.optimize(100)
 
