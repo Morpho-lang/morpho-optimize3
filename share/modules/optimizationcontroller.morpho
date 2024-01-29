@@ -42,13 +42,13 @@ class OptimizationController {
 
   hasconverged() { // Check convergence
     // Convergence in value 
-    if (self._valuehistory && self._valuehistory.count()>1) {
+    /*if (self._valuehistory && self._valuehistory.count()>1) {
       // Compute relative change in value, or use absolute value if close to zero
       var de = abs(self._valuehistory[-1]-self._valuehistory[-2])
       if (abs(self._valuehistory[-1])>1e-16) de/=self._valuehistory[-1]
 
       if (de < self.etol) return true 
-    }
+    }*/
 
     // Convergence in |gradient|
     if (self._gradient) return (self._gradient.norm()<self.gradtol)
@@ -62,7 +62,7 @@ class OptimizationController {
 
   report(iter) { // Report on current state of the optimizer 
     var constraintreport = ""
-    if (self.adapter.isconstrained()) {
+    if (self.adapter.countconstraints()>0) {
       var cval = Matrix(self.adapter.constraintvalue())
       if (cval) constraintreport=", |cons| = ${cval.norm()}"
     }

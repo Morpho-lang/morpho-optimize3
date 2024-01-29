@@ -1,0 +1,69 @@
+// Test the FunctionAdapter on a simple quadratic with a linear constraint
+
+import optimizationadapter
+import optimizationcontroller
+
+fn func(x, y, z, u) {
+    return (x-0.5)^2 + 0.5*(y-1)^2 + 2*(z-2)^2 + u^2
+}
+
+fn g(x, y, z, u) {
+    return x + y - 1
+}
+
+fn h(x, y, z, u) {
+    return z + u - 1
+}
+
+class LagrangeMultiplierAdapter is OptimizationAdapter {
+  init(adapter) {
+    self.adapt = adapter
+    self.nconstraints = adapter.countconstraints()
+    self.lambda = Matrix(self.nconstraints)
+  }
+
+  set(x) { // Get parameters, stripping off lagrange multipliers
+    var n = x.count()
+    var nvars = n - self.nconstraints
+    self.adapt.set(x[0...nvars,0])
+    self.lambda = x[nvars...n,0] // Store lagrange multipliers on this adapter
+  }
+
+  get() { // Get parameters, joining real parameters with lagrange multipliers
+    var x = self.adapt.get()
+    return Matrix([[x], [self.lambda]]) 
+  }
+
+  value() { // Lagrangian = f - lambda_i g_i
+    var f = self.adapt.value() 
+    var g = Matrix(self.adapt.constraintvalue())
+
+    return f + self.lambda.inner(g) 
+  }
+
+  gradient() { // Gradient of Lagrangian is [ df - lambda_i dg_i , - g] 
+    var grad = self.adapt.gradient()
+
+    var consval = Matrix(self.adapt.constraintvalue())
+    var consgrad = self.adapt.constraintgradient()
+
+    for (c,k in consgrad) grad += self.lambda[k]*c
+
+    return Matrix([[grad],[-consval]])
+  } 
+}
+
+var start = Matrix([0,0,0,0])
+
+var adapt = FunctionAdapter(func, start=start, constraints=[g, h])
+
+var ladapt = LagrangeMultiplierAdapter(adapt)
+
+var control = GradientDescentController(ladapt)
+
+control.optimize(200)
+
+print "Value:"
+print adapt.value()
+print "Soln:"
+print adapt.get()
