@@ -14,8 +14,8 @@ var _eps = 1e-16
  * OptimizationController 
  * -------------------------- */ 
 
-/* OptimizationController implement an optimization algorithm, 
-   working by invoking the interface of an OptimizationAdapter. */
+/* OptimizationController implements an optimization algorithm
+   that works by invoking the interface of an OptimizationAdapter. */
 
 class OptimizationController {
   init(adapter, quiet=false) { 
@@ -200,10 +200,11 @@ class ConjugateGradientController is LineSearchController {
         return 
     }
 
-    var beta = self.fletcherreeves()
+    var beta = self.polackribierre()
     if (beta<0) return
 
     self._direction+=beta*self._odirection
+
     self.storegradient()
   }
 }
