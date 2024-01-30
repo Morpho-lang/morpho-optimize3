@@ -8,7 +8,9 @@ var _eps = 1e-16
  * Errors
  * -------------------------- */ 
 
+var _LnSrchDrn = Error("LnSrchDrn", "Linesearch encountered an upward direction.")
 
+var _LnSrchStpsz = Error("LnSrchStpsz", "Linesearch stepsize has tended to zero.")
 
 /* --------------------------
  * OptimizationController 
@@ -128,6 +130,8 @@ class LineSearchController is GradientDescentController {
 
   expecteddescent() { // Predict expected descent
     self.df = self._gradient.inner(self._direction)
+
+    if (self.df>0) _LnSrchDrn.warning()
   }
 
   accept(t) { // Have we descended sufficiently?
@@ -142,16 +146,20 @@ class LineSearchController is GradientDescentController {
   }
 
   step() {// Perform a single linesearch
-    self.expecteddescent() 
+    self.expecteddescent()
     var t=1
+    var success=false
     self._ovalue = self._value // Save value for comparison
 
     var x0 = self.adapter.get() 
     for (nsteps in 1..self.maxsteps) {
         self.stepwith(x0, t)
-        if (self.accept(t)) break
+        success=self.accept(t)
+        if (success) break
         t*=self.beta
     }
+    if (!success) _LnSrchStpsz.warning()
+
     self.stepsize=t
   }
 }
@@ -200,7 +208,7 @@ class ConjugateGradientController is LineSearchController {
         return 
     }
 
-    var beta = self.polackribierre()
+    var beta = self.fletcherreeves()
     if (beta<0) return
 
     self._direction+=beta*self._odirection
