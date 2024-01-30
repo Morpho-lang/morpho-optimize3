@@ -18,7 +18,7 @@ class BFGSController is LineSearchController {
     self.B = IdentityMatrix(self.adapter.get().count())
   }
 
-  update() {
+  post() {
     var sk = self.stepsize * self._direction
     var yk = self.adapter.gradient() - self._gradient
 
@@ -27,20 +27,6 @@ class BFGSController is LineSearchController {
 
     // print Matrix(self.B.eigenvalues()).transpose()/2
     // print self.B.format("%6.3f")
-  }
-
-  optimize(nsteps) {  // Draft of new optimization loop
-    self.start() 
-    for (i in 1..nsteps) {
-      self.value() 
-      self.searchdirection() 
-      self.report(i-1) 
-      if (self.hasconverged()) return 
-
-      self.step() 
-      self.reproject() 
-      self.update()
-    }
   }
 }
 
