@@ -100,7 +100,7 @@ class GradientDescentController is OptimizationController {
   reproject() { }
 
   optimize(nsteps) {  // Optimization loop
-    self.value()
+    self.value() 
     self.searchdirection() 
     for (i in 1..nsteps) {
       self.step() 

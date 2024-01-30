@@ -1,0 +1,74 @@
+// Test conjugate gradient on a poorly scaled quadratic
+
+import optimizationadapter
+import optimizationcontroller
+
+// Constructs a quadratic function with given solution and scale factors
+class Quadratic {
+    init (soln, scale) {
+        self.soln = soln 
+        self.scale = scale 
+    }
+
+    func() { // Return the function
+        fn f(...x) {
+            var val = 0 
+            for (x, k in x) {
+                val+=self.scale[k]*(x - self.soln[k])^2
+            }
+            return val 
+        }
+
+        return f
+    }
+}
+
+var f = Quadratic([1.3, -0.5, 0.9, 1.2, 5], [1,5,0.1,3,0.1]).func() 
+
+var adapt = FunctionAdapter(f, start=Matrix(5))
+
+class BFGSController is LineSearchController {
+  searchdirection() { // Determine the search direction
+    super.searchdirection()
+    self._direction = -(self.B*self._gradient)
+  }
+
+  start() {
+    self.I = IdentityMatrix(self.adapter.get().count())
+    self.B = IdentityMatrix(self.adapter.get().count())
+  }
+
+  update() {
+    var sk = self.stepsize * self._direction
+    var yk = self.adapter.gradient() - self._gradient
+
+    var v = yk.inner(sk)
+    var U = self.I - yk*sk.transpose()/v
+
+    self.B = U.transpose()*self.B*U + sk*sk.transpose()/yk.inner(sk)
+
+    //print Matrix(self.B.eigenvalues()).transpose()/2
+    //print self.B.format("%6.3f")
+  }
+
+  optimize(nsteps) {  // Draft of new optimization loop
+    self.start() 
+    for (i in 1..nsteps) {
+      self.value() 
+      self.searchdirection() 
+      self.report(i-1) 
+      if (self.hasconverged()) return 
+
+      self.step() 
+      self.reproject() 
+      self.update()
+    }
+  }
+}
+
+var control = BFGSController(adapt)
+
+control.optimize(100)
+
+print "Solution:"
+print adapt.get()
