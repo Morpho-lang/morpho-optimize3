@@ -63,13 +63,15 @@ class OptimizationController {
   }
 
   report(iter) { // Report on current state of the optimizer 
+    if (self.quiet) return 
+
     var constraintreport = ""
     if (self.adapter.countconstraints()>0) {
       var cval = Matrix(self.adapter.constraintvalue())
       if (cval) constraintreport=", |cons| = ${cval.norm()}"
     }
 
-    if (!self.quiet) print "Iteration ${iter}: ${self._value}, |grad| = ${self._gradient.norm()}${constraintreport}, stepsize=${self.stepsize}"   // Report 
+    print "Iteration ${iter}: ${self._value}, |grad| = ${self._gradient.norm()}${constraintreport}, stepsize=${self.stepsize}"   // Report 
   }
 }
 
