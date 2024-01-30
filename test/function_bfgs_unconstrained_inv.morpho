@@ -63,12 +63,14 @@ class BFGSController is LineSearchController {
       self.reproject() 
       self.update()
     }
+
+    Error("MaxIter", "Maximum iterations exceeded: present solution does not meet convergence criteria.").warning()
   }
 }
 
 var control = BFGSController(adapt)
 
-control.optimize(100)
+control.optimize(20)
 
 print "Solution:"
 print adapt.get()
