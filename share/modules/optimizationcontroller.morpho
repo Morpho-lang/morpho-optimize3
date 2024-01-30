@@ -8,9 +8,11 @@ var _eps = 1e-16
  * Errors
  * -------------------------- */ 
 
-var _LnSrchDrn = Error("LnSrchDrn", "Linesearch encountered an upward direction.")
+var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
 
-var _LnSrchStpsz = Error("LnSrchStpsz", "Linesearch stepsize has tended to zero.")
+var _OptLnSrchStpsz = Error("OptLnSrchStpsz", "Linesearch stepsize has tended to zero.")
+
+var _OptMaxErr = Error("OptMaxIter", "Maximum iterations exceeded: present solution does not meet convergence criteria.")
 
 /* --------------------------
  * OptimizationController 
@@ -28,7 +30,7 @@ class OptimizationController {
     self.ctol = 1e-10 // Constraint tolerance
 
     self._value = 0    // Current value 
-    self._valuehistory=[]
+    self._valuehistory=[] // History of objective function values
     self._gradient = nil // Current gradient 
     self._direction = nil // Current gradient 
   } 
@@ -44,13 +46,13 @@ class OptimizationController {
 
   hasconverged() { // Check convergence
     // Convergence in value 
-    /*if (self._valuehistory && self._valuehistory.count()>1) {
+    if (self._valuehistory && self._valuehistory.count()>1) {
       // Compute relative change in value, or use absolute value if close to zero
       var de = abs(self._valuehistory[-1]-self._valuehistory[-2])
-      if (abs(self._valuehistory[-1])>1e-16) de/=self._valuehistory[-1]
+      if (abs(self._valuehistory[-1])>self.etol) de/=abs(self._valuehistory[-1])
 
       if (de < self.etol) return true 
-    }*/
+    }
 
     // Convergence in |gradient|
     if (self._gradient) return (self._gradient.norm()<self.gradtol)
@@ -58,8 +60,30 @@ class OptimizationController {
     return false 
   }
 
-  record() { // Record information about the iteration
+  start() { }           // Initialization at the beginning of an optimization
+  searchdirection() { } // Compute search direction
+  step() { }            // Perform optimization step 
+  post() { }            // Override to perform any postprocessing of the step
+  record() {            // Record information about the iteration
     self._valuehistory.append(self._value)
+  }
+  next() { }            // Update any data structures about the optimization
+
+  optimize(nsteps) {    // Optimization loop
+    self.start() 
+    for (i in 1..nsteps) {
+      self.value() 
+      self.searchdirection() 
+      self.record()
+      self.report(i-1) 
+      if (self.hasconverged()) return 
+
+      self.step() 
+      self.post()  
+      self.next()
+    }
+
+    _OptMaxErr.warning()
   }
 
   report(iter) { // Report on current state of the optimizer 
@@ -98,22 +122,6 @@ class GradientDescentController is OptimizationController {
     x+=self.stepsize*self._direction
     self.adapter.set(x)
   }
-
-  reproject() { }
-
-  optimize(nsteps) {  // Optimization loop
-    self.value() 
-    self.searchdirection() 
-    for (i in 1..nsteps) {
-      self.step() 
-      self.reproject() 
-      self.value()
-      self.searchdirection() // Also updates gradient
-      self.report(i) 
-      self.record()
-      if (self.hasconverged()) return 
-    }
-  }
 }
 
 /* -----------------------------------------
@@ -133,7 +141,7 @@ class LineSearchController is GradientDescentController {
   expecteddescent() { // Predict expected descent
     self.df = self._gradient.inner(self._direction)
 
-    if (self.df>0) _LnSrchDrn.warning()
+    if (self.df>0) _OptLnSrchDrn.warning()
   }
 
   accept(t) { // Have we descended sufficiently?
@@ -160,7 +168,7 @@ class LineSearchController is GradientDescentController {
         if (success) break
         t*=self.beta
     }
-    if (!success) _LnSrchStpsz.warning()
+    if (!success) _OptLnSrchStpsz.warning()
 
     self.stepsize=t
   }
