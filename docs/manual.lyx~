@@ -153,7 +153,9 @@ figs-within-sections
 \begin_body
 
 \begin_layout Title
-The optimization module
+Optimize3: A new optimization package for 
+\emph on
+morpho
 \end_layout
 
 \begin_layout Chapter
