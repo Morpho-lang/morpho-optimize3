@@ -217,7 +217,7 @@ class ConjugateGradientController is LineSearchController {
     super.searchdirection() // Calculate new descent direction
     if (!self._odirection) return
 
-    var beta = self.hagerzhang()
+    var beta = self.fletcherreeves()
     if (beta<0) return
 
     self._direction+=beta*self._odirection
