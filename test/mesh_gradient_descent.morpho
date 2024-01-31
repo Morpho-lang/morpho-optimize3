@@ -15,9 +15,9 @@ problem.addconstraint(la)
 
 var adapt = MeshAdapter(problem, m)
 
-//var control = ProjectedLineSearchController(adapt)
+var control = ProjectedLineSearchController(adapt)
 //var control = ProjectedGradientDescentController(adapt)
-var control = ProjectedConjugateGradientController(adapt)
+//var control = ProjectedConjugateGradientController(adapt)
 control.optimize(10000)
 
 import plot 
