@@ -184,13 +184,12 @@ class LineSearchController is GradientDescentController {
  * ----------------------------------------- */ 
 
 class ConjugateGradientController is LineSearchController {
-  init(adapter, quiet=false, stepsize=0.1) {
-    super.init(adapter, quiet=quiet)
+  start() {
     self._odirection = nil 
     self._ogradient = nil 
   }
 
-  storegradient() {
+  post() {
     self._odirection=self._direction
     self._ogradient=self._gradient
   }
@@ -207,26 +206,21 @@ class ConjugateGradientController is LineSearchController {
   }
 
   hagerzhang() {
-    var y = self._gradient - self._ogradient
-    var dxy = self._odirection.inner(y)
-    if (abs(dxy)<1e-10) return -1
-    var beta = (y - 2*y.inner(y)*self._odirection/dxy).inner(self._ogradient)/dxy
+    var yk = self._gradient - self._ogradient
+    var dxy = self._odirection.inner(yk)
+    if (abs(dxy)<_eps) return 0
+    var beta = (yk - 2*yk.inner(yk)*self._odirection/dxy).inner(self._gradient)/dxy
     return beta 
   }
 
   searchdirection() {
     super.searchdirection() // Calculate new descent direction
-    if (!self._odirection) { // First iteration
-        self.storegradient()
-        return 
-    }
+    if (!self._odirection) return
 
-    var beta = self.fletcherreeves()
+    var beta = self.hagerzhang()
     if (beta<0) return
 
     self._direction+=beta*self._odirection
-
-    self.storegradient()
   }
 }
 
@@ -297,7 +291,7 @@ class ConstraintPreProjection {
 }
 
 class ConstraintPostprojection {
-  post() {
+  reproject() {
     var x = self.adapter.get()
 
     var dv = Matrix(1)
@@ -330,6 +324,8 @@ class ProjectedGradientDescentController is GradientDescentController
     super.searchdirection()
     self.subtractconstraints()
   }
+
+  post() { self.reproject() }
 }
 
 class ProjectedLineSearchController is LineSearchController 
@@ -338,6 +334,8 @@ class ProjectedLineSearchController is LineSearchController
     super.searchdirection()
     self.subtractconstraints()
   }
+
+  post() { self.reproject() }
 }
 
 class ProjectedConjugateGradientController is ConjugateGradientController
@@ -345,5 +343,10 @@ class ProjectedConjugateGradientController is ConjugateGradientController
   searchdirection() {
     super.searchdirection()
     self.subtractconstraints()
+  }
+
+  post() {
+    self.reproject()
+    super.post()  
   }
 }
