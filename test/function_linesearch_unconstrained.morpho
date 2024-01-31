@@ -1,4 +1,4 @@
-// Test the FunctionAdapter on a simple quadratic 
+// Test the LineSearchController on a poorly scaled quadratic
 
 import optimize3
 
