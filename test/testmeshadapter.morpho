@@ -1,9 +1,7 @@
 // Test the MeshAdapter on a simple square loop 
 
-import optimize 
 import meshtools 
-import optimizationadapter
-import optimizationcontroller
+import optimize3
 
 // Build mesh 
 var mb = MeshBuilder() 

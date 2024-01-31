@@ -1,0 +1,7 @@
+/* ************************************************************
+ * Optimize3 module 
+ * ************************************************************ */ 
+
+import optimizationproblem 
+import optimizationadapter
+import optimizationcontroller

@@ -1,7 +1,6 @@
 // Test the FunctionAdapter on a simple quadratic 
 
-import optimizationadapter
-import optimizationcontroller
+import optimize3
 
 fn func(x, y) {
     return (x-0.5)^2 + (y-1)^2

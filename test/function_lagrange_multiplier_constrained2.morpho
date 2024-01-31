@@ -2,8 +2,7 @@
 
 // See Platt and Barr "Constrained Differential Optimization", (1988)
 
-import optimizationadapter
-import optimizationcontroller
+import optimize3
 
 fn func(x, y) {
     return x^2 + y^2

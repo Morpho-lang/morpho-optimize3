@@ -1,9 +1,7 @@
 // Simple gradient descent example on a Mesh 
 
-import optimize 
 import meshtools 
-import optimizationadapter
-import optimizationcontroller
+import optimize3
 
 var m = LineMesh(fn (t) [2*cos(t),sin(t)], -Pi...Pi:Pi/10, closed=true)
 

@@ -20,7 +20,7 @@ var _OptMaxCons = Error("OptMaxCons", "Maximum number of reprojection iterations
  * OptimizationController 
  * -------------------------- */ 
 
-/* OptimizationController implements an optimization algorithm
+/* OptimizationController implements an optimization algorithm or a subcomponent
    that works by invoking the interface of an OptimizationAdapter. */
 
 class OptimizationController {

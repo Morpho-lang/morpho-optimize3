@@ -1,7 +1,6 @@
-// Test the FunctionAdapter on a simple quadratic with a linear constraint
+// Test projected linesearch on a simple quadratic with a linear constraint
 
-import optimizationadapter
-import optimizationcontroller
+import optimize3
 
 fn func(x, y, z) {
     return (x-0.5)^2 + 0.5*(y-1)^2 + 2*(z-2)^2
