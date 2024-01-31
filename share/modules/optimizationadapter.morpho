@@ -1,7 +1,7 @@
 /* ************************************************************
  * OptimizationAdapter 
  * ************************************************************ */ 
- 
+
 /* --------------------------
  * Errors
  * -------------------------- */ 
@@ -187,7 +187,11 @@ class ProblemAdapter is OptimizationAdapter {
     var cval = []
     for (cons in self.constraints()) {
       if (!self.includeconstraint(cons)) continue 
-      cval.append(self.valueForFunctional(cons))
+
+      var val = self.valueForFunctional(cons)
+      if (cons.has("target")) val-=cons.target
+
+      cval.append(val)
     }
     return cval 
   }
@@ -201,6 +205,14 @@ class ProblemAdapter is OptimizationAdapter {
       cgrad.append(grad)      
     }
     return cgrad
+  }
+
+  countconstraints() { 
+    var count = 0
+    for (cons in self.constraints()) {
+      if (self.includeconstraint(cons)) count+=1
+    }
+    return count
   }
 }
 
