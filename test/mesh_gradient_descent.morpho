@@ -1,0 +1,20 @@
+import optimize 
+import meshtools 
+import optimizationadapter
+import optimizationcontroller
+
+// Simple gradient descent example
+var m = LineMesh(fn (t) [2*cos(t),sin(t)], -Pi...Pi:Pi/10, closed=true)
+
+var problem = OptimizationProblem(m)
+
+var ll = Length() 
+problem.addenergy(ll)
+
+var la = AreaEnclosed() 
+problem.addconstraint(la)
+
+var adapt = MeshAdapter(problem, m)
+
+var control = ProjectedGradientDescentController(adapt)
+control.optimize(10000)

@@ -60,8 +60,3 @@ print adapt.constraintvalue() // Show constraint values
 // expect: [ 1 ]
 
 print adapt.constraintgradient()[0] // Show constraint gradients 
-
-var control = ProjectedGradientDescentController(adapt)
-
-control.optimize(1000)
-
