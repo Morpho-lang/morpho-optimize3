@@ -1,0 +1,62 @@
+// Test the MeshAdapter on a simple square loop 
+
+import optimize 
+import meshtools 
+import optimizationadapter
+
+// Build mesh 
+var mb = MeshBuilder() 
+mb.addvertex([0,0])
+mb.addvertex([1,0])
+mb.addvertex([1,1])
+mb.addvertex([0,1])
+mb.addedge([0,1])
+mb.addedge([1,2])
+mb.addedge([2,3])
+mb.addedge([3,0])
+var m = mb.build() 
+
+// Set up a demo problem 
+var problem = OptimizationProblem(m)
+
+problem.addenergy(Length())
+
+problem.addconstraint(AreaEnclosed())
+
+// Test the MeshAdapter 
+var adapt = MeshAdapter(problem, m)
+
+print adapt.value() // Find the value 
+// expect: 4
+
+print adapt.get() // Get parameters 
+// expect: [ 0 ]
+// expect: [ 0 ]
+// expect: [ 1 ]
+// expect: [ 0 ]
+// expect: [ 1 ]
+// expect: [ 1 ]
+// expect: [ 0 ]
+// expect: [ 1 ]
+
+print "Gradient:"
+// expect: Gradient:
+
+print adapt.gradient() // Find gradient wrt mesh coordinates 
+// expect: [ -1 ]
+// expect: [ -1 ]
+// expect: [ 1 ]
+// expect: [ -1 ]
+// expect: [ 1 ]
+// expect: [ 1 ]
+// expect: [ -1 ]
+// expect: [ 1 ]
+
+print "Constraints:"
+// expect: Constraints:
+
+print adapt.constraintvalue() // Show constraint values
+// expect: [ 1 ]
+
+print adapt.constraintgradient()[0] // Show constraint gradients 
+
