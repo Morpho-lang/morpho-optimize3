@@ -9,21 +9,20 @@ var _eps = 1e-16
  * -------------------------- */ 
 
 var _OptInf = Error("OptInf", "Optimizer encountered an infinite or non-numerical value.")
-
 var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
-
 var _OptLnSrchStpsz = Error("OptLnSrchStpsz", "Linesearch stepsize has tended to zero.")
-
 var _OptMaxErr = Error("OptMaxIter", "Maximum iterations exceeded: present solution does not meet convergence criteria.")
-
 var _OptMaxCons = Error("OptMaxCons", "Maximum number of reprojection iterations exceeded: present solution does not meet constraint tolerance.") 
+var _OptNoGrad = Error("OptNoGrad", "Method requires a gradient.")
+var _OptNoHess = Error("OptNoHess", "Method requires a hessian.")
 
 /* --------------------------
  * OptimizationController 
  * -------------------------- */ 
 
-/* OptimizationController implements an optimization algorithm or a subcomponent
-   that works by invoking the interface of an OptimizationAdapter. */
+/* OptimizationController is a base class that implements an 
+   optimization algorithm or a subcomponent that works by invoking
+   the interface of an OptimizationAdapter. */
 
 class OptimizationController {
   init(adapter, quiet=false) { 
@@ -79,7 +78,7 @@ class OptimizationController {
   optimize(nsteps) {    // Optimization loop
     self.start() 
     for (i in 1..nsteps) {
-      self.value() 
+      self.value()            
       self.searchdirection() 
       self.record()
       self.report(i-1) 
@@ -276,9 +275,22 @@ class InvBFGSController is LineSearchController {
 }
 
 /* -----------------------------------------
- * ProjectedGradientDescentController
- * 
- * Projected gradient descent
+ * Newton's method
+ * ----------------------------------------- */ 
+
+class NewtonController is LineSearchController {
+  searchdirection() {
+    super.searchdirection()
+    
+    var H = self.adapter.hessian() 
+    if (!H) _OptNoHess.throw("NewtonController can't use ${self.adapter.clss()} because it doesn't provide a hessian.") 
+
+    self._direction = self._direction/H // direction was already -grad from superclass
+  }
+}
+
+/* -----------------------------------------
+ * Constrained optimization 
  * ----------------------------------------- */ 
 
 class ConstraintPreProjection {
