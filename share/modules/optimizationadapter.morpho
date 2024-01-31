@@ -52,15 +52,19 @@ class OptimizationAdapter {
 
 /* Adapts a provided function (and an optional gradient) to the OptimizationAdapter interface */
 
-var _eps=(1e-16)^(1/3) // Optimal relative stepsize for cell centered differences
+var _epsfd=(1e-16)^(1/3) // Optimal relative stepsize for cell centered differences
+var _epshess=(1e-16)^(1/4) // Optimal relative stepsize for cell centered differences
 
 class FunctionAdapter is OptimizationAdapter {
-  init(target, gradient=nil, start=nil, constraints=nil, constraintgradients=nil) {
+  init(target, gradient=nil, hessian=nil, start=nil, constraints=nil, constraintgradients=nil) {
     super.init(target)
     self.x = start
     
     self.gradfn = gradient 
     if (!gradient) self.gradfn = self._numericalgrad(self.target) // Use FD if no grad provided
+
+    self.hessianfn = hessian
+    if (!hessian) self.hessianfn = self._numericalhessian(self.target) // Use FD if no hessian provided
 
     self.constraints = constraints
     self.constraintgradfn = constraintgradients
@@ -77,8 +81,8 @@ class FunctionAdapter is OptimizationAdapter {
     return l 
   }
 
-  _stepsize(x) {
-    var h=_eps
+  _stepsize(eps, x) { // Select stepsize for finite differences
+    var h=eps
     var xx=abs(x)
     if (xx>1) h*=xx // Scale
 
@@ -87,13 +91,13 @@ class FunctionAdapter is OptimizationAdapter {
   }
 
   _numericalgrad(f) { // Construct a numerical gradient as a closure 
-    fn gradfn(...x) {
+    fn numericalgradfn(...x) {
       var n = x.count()
       var grad = Matrix(n)
 
       for (var i=0; i<n; i+=1) {
         var x0 = x[i]
-        var eps = self._stepsize(x0)
+        var eps = self._stepsize(_epsfd, x0)
         x[i]=x0+eps
         var fr = apply(f, x)
         x[i]=x0-eps
@@ -103,7 +107,50 @@ class FunctionAdapter is OptimizationAdapter {
 
       return grad 
     }
-    return gradfn
+    return numericalgradfn
+  }
+
+  _numericalhessian(f) {
+    fn numericalhessianfn(...x) {
+      var n = x.count()
+      var hess = Matrix(n,n)
+      var f0 = apply(f, x)
+
+      for (var i=0; i<n; i+=1) {
+        var x0 = x[i]
+        var epsx = self._stepsize(_epsfd, x0)
+
+        // Diagonal entries see Abramowitz and Stegun 1972, p. 884, 25.3.23, O(h^2)
+        x[i]=x0+epsx
+        var fr = apply(f, x)
+        x[i]=x0-epsx
+        var fl = apply(f, x)
+        x[i]=x0
+
+        hess[i,i]=(fr+fl-2*f0)/(epsx*epsx)
+
+        // Off diagonal entries Abramowitz and Stegun 1972, p. 884, 25.3.26 O(h^2)
+        for (var j=0; j<i; j+=1) {
+          var y0 = x[j]            
+          var epsy = self._stepsize(_epsfd, y0)
+
+          x[i]=x0+epsx; x[j]=y0+epsy
+          var frr = apply(f, x)
+          x[i]=x0-epsx; x[j]=y0-epsy
+          var fll = apply(f, x)
+          x[i]=x0-epsx; x[j]=y0+epsy
+          var flr = apply(f, x)
+          x[i]=x0+epsx; x[j]=y0-epsy
+          var frl = apply(f, x)
+          x[i]=x0; x[j]=y0
+
+          hess[i,j]=hess[j,i]=(frr+fll-flr-frl)/(epsx*epsy)/4
+        }
+      }
+
+      return hess  
+    } 
+    return numericalhessianfn 
   }
 
   set(x) { self.x = x }
@@ -111,6 +158,7 @@ class FunctionAdapter is OptimizationAdapter {
 
   value() { return apply(self.target, self._listify(self.x)) }
   gradient() { return apply(self.gradfn, self._listify(self.x)) }
+  hessian() { return apply(self.hessianfn, self._listify(self.x)) }
 
   countconstraints() {
     if (self.constraints) return self.constraints.count()
