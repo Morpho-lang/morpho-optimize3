@@ -8,6 +8,8 @@ var _eps = 1e-16
  * Errors
  * -------------------------- */ 
 
+var _OptInf = Error("OptInf", "Optimizer encountered an infinite or non-numerical value.")
+
 var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
 
 var _OptLnSrchStpsz = Error("OptLnSrchStpsz", "Linesearch stepsize has tended to zero.")
@@ -39,8 +41,10 @@ class OptimizationController {
   } 
 
   value() { // Calculate the value of the objective function
-    self._value=self.adapter.value()
-    return self._value 
+    var v = self.adapter.value()
+    if (isinf(v) || isnan(v)) _OptInf.throw() 
+    self._value = v
+    return v
   }
 
   gradient() { // Calculate the gradient of the objective function
