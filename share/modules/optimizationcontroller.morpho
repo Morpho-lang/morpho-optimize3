@@ -30,6 +30,7 @@ class OptimizationController {
     self.gradtol = 1e-6 // Halting criterion based on norm of the gradient
     self.etol = 1e-8 // Halting criterion based on change in value of objective function
     self.ctol = 1e-10 // Constraint tolerance
+    self.maxconsiterations = 100 // Maximum number of iterations to satisfy constraints
 
     self._value = 0    // Current value 
     self._valuehistory=[] // History of objective function values
@@ -282,15 +283,8 @@ class InvBFGSController is LineSearchController {
  * Projected gradient descent
  * ----------------------------------------- */ 
 
-class ProjectedGradientDescentController is GradientDescentController {
-  init(adapter, quiet=false, stepsize=0.1) { 
-    super.init(adapter, quiet=quiet, stepsize=stepsize)
-    self.maxconstraintsteps = 100
-  }
-
-  searchdirection() {
-    super.searchdirection()
-
+class ConstraintPreProjection {
+  subtractconstraints() {
     var cgrad = self.adapter.constraintgradient()
 
     for (g in cgrad) {
@@ -300,13 +294,15 @@ class ProjectedGradientDescentController is GradientDescentController {
       self._direction -= (dg/gg)*g 
     }
   }
+}
 
+class ConstraintPostprojection {
   post() {
     var x = self.adapter.get()
 
     var dv = Matrix(1)
 
-    for (_ in 1..self.maxconstraintsteps) {
+    for (_ in 1..self.maxconsiterations) {
       dv = Matrix(self.adapter.constraintvalue())
 
       if (dv.norm()<self.ctol) return 
@@ -325,5 +321,29 @@ class ProjectedGradientDescentController is GradientDescentController {
     }
 
     _OptMaxCons.warning("Maximum number of constraint steps exceeded without achieving the constraint tolerance of ${self.ctol} (residual is ${dv.norm()}). Try setting 'maxconstraintsteps' to more than ${self.maxconstraintsteps}, or increase constraint tolerance.")
+  }
+}
+
+class ProjectedGradientDescentController is GradientDescentController 
+      with ConstraintPreProjection, ConstraintPostprojection {
+  searchdirection() {
+    super.searchdirection()
+    self.subtractconstraints()
+  }
+}
+
+class ProjectedLineSearchController is LineSearchController 
+      with ConstraintPreProjection, ConstraintPostprojection {
+  searchdirection() {
+    super.searchdirection()
+    self.subtractconstraints()
+  }
+}
+
+class ProjectedConjugateGradientController is ConjugateGradientController
+      with ConstraintPreProjection, ConstraintPostprojection {
+  searchdirection() {
+    super.searchdirection()
+    self.subtractconstraints()
   }
 }

@@ -3,7 +3,7 @@
 import meshtools 
 import optimize3
 
-var m = LineMesh(fn (t) [2*cos(t),sin(t)], -Pi...Pi:Pi/10, closed=true)
+var m = LineMesh(fn (t) [2*cos(t),sin(t)], -Pi...Pi:Pi/20, closed=true)
 
 var problem = OptimizationProblem(m)
 
@@ -15,5 +15,11 @@ problem.addconstraint(la)
 
 var adapt = MeshAdapter(problem, m)
 
+//var control = ProjectedLineSearchController(adapt)
 var control = ProjectedGradientDescentController(adapt)
+//var control = ProjectedConjugateGradientController(adapt)
 control.optimize(10000)
+
+import plot 
+
+Show(plotmesh(m))
