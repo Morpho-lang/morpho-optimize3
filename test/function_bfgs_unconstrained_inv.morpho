@@ -8,32 +8,14 @@ var f = Quadratic([1.3, -0.5, 0.9, 1.2, 5], [1,5,0.1,3,0.1]).func()
 
 var adapt = FunctionAdapter(f, start=Matrix(5))
 
-class BFGSController is LineSearchController {
-  searchdirection() { // Determine the search direction
-    super.searchdirection()
-    self._direction = -(self.B*self._gradient)
-  }
-
-  start() {
-    self.I = IdentityMatrix(self.adapter.get().count())
-    self.B = IdentityMatrix(self.adapter.get().count())
-  }
-
-  post() {
-    var sk = self.stepsize * self._direction
-    var yk = self.adapter.gradient() - self._gradient
-
-    var v = yk.inner(sk)
-    var U = self.I - yk*sk.transpose()/v
-
-    self.B = U.transpose()*self.B*U + sk*sk.transpose()/yk.inner(sk)
-
-    //print Matrix(self.B.eigenvalues()).transpose()/2
-    //print self.B.format("%6.3f")
+class XInvBFGSController is InvBFGSController {
+  report(i) {
+    super.report(i)
+    print self.B 
   }
 }
 
-var control = BFGSController(adapt)
+var control = XInvBFGSController(adapt)
 
 control.optimize(20)
 

@@ -226,3 +226,50 @@ class ConjugateGradientController is LineSearchController {
     self.storegradient()
   }
 }
+
+/* -----------------------------------------
+ * BFGSController
+ * 
+ * BFGS with dense matrices
+ * ----------------------------------------- */ 
+
+class BFGSController is LineSearchController {
+  searchdirection() { // Determine the search direction
+    super.searchdirection()
+    self._direction = -self._gradient/self.B
+  }
+
+  start() {
+    self.B = IdentityMatrix(self.adapter.get().count())
+  }
+
+  post() {
+    var sk = self.stepsize * self._direction
+    var yk = self.adapter.gradient() - self._gradient
+
+    var u = self.B*sk 
+    self.B += yk*yk.transpose()/yk.inner(sk) - u*u.transpose()/sk.inner(u)
+  }
+}
+
+class InvBFGSController is LineSearchController {
+  searchdirection() { // Determine the search direction
+    super.searchdirection()
+    self._direction = -(self.B*self._gradient)
+  }
+
+  start() {
+    self.I = IdentityMatrix(self.adapter.get().count())
+    self.B = IdentityMatrix(self.adapter.get().count())
+  }
+
+  post() {
+    var sk = self.stepsize * self._direction
+    var yk = self.adapter.gradient() - self._gradient
+
+    var v = yk.inner(sk)
+    var U = self.I - yk*sk.transpose()/v
+
+    self.B = U.transpose()*self.B*U + sk*sk.transpose()/yk.inner(sk)
+  }
+}
