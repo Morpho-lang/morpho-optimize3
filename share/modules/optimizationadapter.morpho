@@ -345,3 +345,39 @@ class FieldAdapter is ProblemAdapter {
 
   includeconstraint(c) { return (c.field==self.target) }
 }
+
+/* -------------------------
+ * PenaltyAdapter
+ * ------------------------- */
+
+/* Converts a constrained optimization problem into an unconstrained one */
+
+class PenaltyAdapter is OptimizationAdapter {
+  init(adapter, penalty=1) { 
+    self.adapter = adapter
+    self.penalty = penalty 
+  }
+
+  setpenalty(penalty) { self.penalty = penalty }
+  penalty() { return self.penalty }
+
+  set(x) { self.adapter.set(x) }
+  get() { return self.adapter.get() }
+
+  value() { // L = f + mu*g^2
+    var g = Matrix(self.adapter.constraintvalue())
+
+    return self.adapter.value() + 
+           self.penalty*g.inner(g)
+  }
+
+  gradient() { // grad L = grad f + 2*mu*g*grad g
+    var grad = self.adapter.gradient() 
+    var g = self.adapter.constraintvalue()   
+    var dg = self.adapter.constraintgradient()   
+
+    for (dgk, k in dg) grad += 2*self.penalty*g[k]*dgk
+
+    return grad
+  }
+}

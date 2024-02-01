@@ -15,10 +15,13 @@ problem.addconstraint(la)
 
 var adapt = MeshAdapter(problem, m)
 
-var control = ProjectedLineSearchController(adapt)
-//var control = ProjectedGradientDescentController(adapt)
-//var control = ProjectedConjugateGradientController(adapt)
-control.optimize(10000)
+var padapt = PenaltyAdapter(adapt)
+var control = BFGSController(padapt)
+
+for (_ in 1..10) {
+  padapt.setpenalty(10*padapt.penalty())
+  control.optimize(1000)
+}
 
 import plot 
 
