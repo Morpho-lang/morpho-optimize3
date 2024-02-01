@@ -7,63 +7,6 @@ var f = Quadratic([1.3, -0.5, 0.9, 1.2, 5], [1,5,0.1,3,0.1]).func()
 
 var adapt = FunctionAdapter(f, start=Matrix(5))
 
-class LBFGSController is LineSearchController {
-  init(adapter, quiet=false, maxhistorylength=10) {
-    super.init(adapter, quiet=quiet)
-    self.maxhistorylength = maxhistorylength
-  }
-
-  _popfirst(lst) { // Pops the first element of a list
-    var a = lst.roll(-1)
-    a.pop() 
-    return a 
-  }
-
-  start() {
-    self._storage = []
-  }
-
-  searchdirection() {
-    super.searchdirection()
-
-    var n = self._storage.count() 
-    if (n==0) return
-
-    var alpha[n]
-
-    // Compute the action of Hk on the gradient 
-    var q = self._gradient 
-
-    // Project off all components of gradient that lie in the history directions
-    for (k in n-1..0:-1) { // Note loop is last to first
-      var z = self._storage[k]
-      var sk = z[0], yk = z[1], rho = 1/z[2]
-      alpha[k] = rho*sk.inner(q)
-      q-=alpha[k]*yk
-    } 
-
-    var zl = self._storage[-1] // Start with most recent
-    var r = (zl[2]/zl[3])*q // (sk.yk)/(yk.yk)
-
-    for (z, k in self._storage) { // Loop is first to last
-      var sk = z[0], yk = z[1], rho = 1/z[2]
-      var beta = rho*yk.inner(r)
-      r+=sk*(alpha[k]-beta)
-    }
-
-    self._direction = -r
-  }
-
-  post() {
-    var sk = self.stepsize * self._direction
-    var yk = self.adapter.gradient() - self._gradient
-
-    self._storage.append((sk, yk, sk.inner(yk), yk.inner(yk)))
-
-    if (self._storage.count()>self.maxhistorylength) self._storage = self._popfirst(self._storage)
-  }
-}
-
 var control = LBFGSController(adapt)
 
 control.optimize(50)

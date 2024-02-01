@@ -50,7 +50,8 @@ var algorithms = [ [ "linesearch",  LineSearchController         ],
                    [ "conj. grad.", ConjugateGradientController  ],
                    [ "newton",      NewtonController             ],
                    [ "bfgs",        BFGSController               ],
-                   [ "bfgsinv",     InvBFGSController            ]
+                   [ "bfgsinv",     InvBFGSController            ],
+                   [ "lbfgs",       LBFGSController              ]
                  ]
 
 var ntests = tests.count(), nalgs = algorithms.count()
