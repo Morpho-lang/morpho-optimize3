@@ -37,7 +37,7 @@ class ProjectedLineSearchController is LineSearchController {
     var dv = Matrix(1)
 
     for (_ in 1..self.maxconstraintsteps) {
-      dv = Matrix(self.adapter.constraintvalue())
+      dv = self.adapter.constraintvalue()
       if (dv.norm()<self.ctol) return 
 
       var cgrad = self.adapter.constraintgradient()

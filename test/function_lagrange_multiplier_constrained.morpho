@@ -35,7 +35,7 @@ class LagrangeMultiplierAdapter is OptimizationAdapter {
 
   value() { // Lagrangian = f - lambda_i g_i
     var f = self.adapt.value() 
-    var g = Matrix(self.adapt.constraintvalue())
+    var g = self.adapt.constraintvalue()
 
     return f + self.lambda.inner(g) 
   }
@@ -43,7 +43,7 @@ class LagrangeMultiplierAdapter is OptimizationAdapter {
   gradient() { // Gradient of Lagrangian is [ df - lambda_i dg_i , - g] 
     var grad = self.adapt.gradient()
 
-    var consval = Matrix(self.adapt.constraintvalue())
+    var consval = self.adapt.constraintvalue()
     var consgrad = self.adapt.constraintgradient()
 
     for (c,k in consgrad) grad += self.lambda[k]*c

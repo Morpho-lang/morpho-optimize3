@@ -97,7 +97,7 @@ class OptimizationController {
 
     var constraintreport = ""
     if (self.adapter.countconstraints()>0) {
-      var cval = Matrix(self.adapter.constraintvalue())
+      var cval = self.adapter.constraintvalue()
       if (cval) constraintreport=", |cons| = ${cval.norm()}"
     }
 
@@ -220,7 +220,7 @@ class ConjugateGradientController is LineSearchController {
     super.searchdirection() // Calculate new descent direction
     if (!self._odirection) return
 
-    var beta = self.fletcherreeves()
+    var beta = self.polackribierre()
     if (beta<0) return
 
     self._direction+=beta*self._odirection
@@ -313,7 +313,7 @@ class ConstraintPostprojection {
     var dv = Matrix(1)
 
     for (_ in 1..self.maxconsiterations) {
-      dv = Matrix(self.adapter.constraintvalue())
+      dv = self.adapter.constraintvalue()
 
       if (dv.norm()<self.ctol) return 
 

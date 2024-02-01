@@ -168,9 +168,9 @@ class FunctionAdapter is OptimizationAdapter {
   constraintvalue() { 
     if (!self.constraints) return nil 
 
-    var val = []
-    for (c in self.constraints) val.append(apply(c, self._listify(self.x)))
-    return val
+    var val = Matrix(self.countconstraints())
+    for (c, k in self.constraints) val[k]=apply(c, self._listify(self.x))
+    return Matrix(val)
   }   
 
   constraintgradient() { 
@@ -241,7 +241,7 @@ class ProblemAdapter is OptimizationAdapter {
 
       cval.append(val)
     }
-    return cval 
+    return Matrix(cval)
   }
 
   constraintgradient() {
