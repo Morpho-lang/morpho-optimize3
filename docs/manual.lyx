@@ -208,8 +208,7 @@ optimize3
 \emph on
 morpho
 \emph default
- was designed (Fig.
- 1).
+ was designed.
  The design is intended to be flexible, enabling customization of the choice
  of algorithm and easy incorporation of new algorithms by the developer
  or user.
@@ -234,7 +233,8 @@ import optimize3
 
 \begin_layout Standard
 This imports several subsidiary modules, which provide three main kinds
- of class: 
+ of class that work together (Fig.
+ 1): 
 \end_layout
 
 \begin_layout Description
@@ -366,6 +366,10 @@ and its hessian,
 \end_layout
 
 \begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
 OptimizationAdapters convert a problem of interest with an arbitrary representat
 ion into the standard form 
 \begin_inset CommandInset ref
@@ -378,6 +382,17 @@ noprefix "false"
 \end_inset
 
 .
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+
+\emph on
+[More to go here]
 \end_layout
 
 \begin_layout Chapter
@@ -458,11 +473,13 @@ OptimizationAdapter and its subclasses exist to provide a uniform interface
 \end_layout
 
 \begin_layout Standard
-Further, adapter objects can be chained together to create useful effects.
+Further, adapter objects can be connected together to create useful effects.
  An adapter such as PenaltyAdapter converts a constrained problem to an
- unconstrained problem, for example.
+ unconstrained problem, for example, facilitating use of a different set
+ of OptimizationControllers.
  Appropriate adapters could also be used within a broader algorithm to solve
- a subproblem of interest.
+ a subproblem of interest, for example performing a linesearch on an augmented
+ objective function rather than the original one.
  
 \end_layout
 
@@ -698,6 +715,27 @@ ed problem.
  
 \end_layout
 
+\begin_layout Standard
+PenaltyAdapter relies on the attached adapter to provide value, gradient
+ and hessian information if requested by the controller; note especially
+ that the hessian of the constraint functions, and not just their gradient,
+ is required to compute the hessian of 
+\begin_inset Formula $\mathcal{L}$
+\end_inset
+
+ in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Penalty"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+\end_layout
+
 \begin_layout Subsection
 LagrangeMultiplierAdapter
 \end_layout
@@ -855,6 +893,9 @@ countconstraints()
 
 \begin_layout Standard
 Returns the number of constraints present.
+ In future, this should be a Tuple with the first element being the number
+ of equality constraints and the second being the number of inequality constrain
+ts.
  
 \end_layout
 
@@ -886,6 +927,11 @@ In this chapter we review optimization algorithms available in the package,
  For a deeper understanding of these algorithms, the reader should consult
  standard textbooks on optimization theory.
  
+\end_layout
+
+\begin_layout Standard
+New OptimizationControllers can easily be defined, including ones created
+ in extensions linking to external optimization libraries.
 \end_layout
 
 \begin_layout Section
@@ -1053,6 +1099,13 @@ var control = GradientDescentController(adapter, stepsize=0.1)
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+While GradientDescentController is rarely useful directly, it is sometimes
+ helpful in very constrained problems (where linesearches offer little benefit)
+ or to establish that a new OptimizationAdapter is indeed working correctly.
+ 
 \end_layout
 
 \begin_layout Subsection
@@ -1277,7 +1330,53 @@ At the minimum of
 
 \end_inset
 
-and hence if we neglect higher order terms, 
+and hence, neglecting higher order terms, we can obtain an update 
+\begin_inset Formula $(\mathbf{x}-\mathbf{x}_{k})$
+\end_inset
+
+ by solving the linear system,
+\begin_inset Formula 
+\begin{equation}
+\mathbf{H}_{k}\cdot(\mathbf{x}-\mathbf{x}_{k})=-\mathbf{g_{k}},\label{eq:NewtonStep}
+\end{equation}
+
+\end_inset
+
+which is called a Newton step.
+ If 
+\begin_inset Formula $f(\mathbf{x})$
+\end_inset
+
+ is a quadratic function, then Eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:TaylorExpansion"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ is no longer an approximation and the correct solution can be obtained
+ in one iteration.
+ In practice, the solution of Eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:NewtonStep"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ is used as a search direction 
+\begin_inset Formula $\mathbf{d}_{k}$
+\end_inset
+
+ for a line search.
+ 
 \end_layout
 
 \begin_layout Subsection
@@ -1285,8 +1384,25 @@ NewtonController
 \end_layout
 
 \begin_layout Standard
-The NewtonController class implements Newton updates.
+The NewtonController class implements Newton updates: in each iteration
+ a search direction is identified from Eq.
  
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:NewtonStep"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ and then a linesearch is performed.
+ NewtonController requires an OptimizationAdapter that can calculate a hessian
+ and raises the error 
+\family typewriter
+OptNoHess
+\family default
+ it it detects this is not the case.
 \end_layout
 
 \begin_layout Subsection

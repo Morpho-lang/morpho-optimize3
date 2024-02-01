@@ -275,6 +275,12 @@ class InvBFGSController is LineSearchController {
 }
 
 /* -----------------------------------------
+ * LBFGSController
+ * 
+ * Limited memory variant of BFGS
+ * ----------------------------------------- */ 
+
+/* -----------------------------------------
  * Newton's method
  * ----------------------------------------- */ 
 
