@@ -1,0 +1,42 @@
+// Test the MeshAdapter on a simple square loop 
+
+import meshtools 
+import optimize3
+
+// Build mesh 
+var mb = MeshBuilder() 
+mb.addvertex([0,0])
+mb.addvertex([1,0])
+mb.addvertex([1,1])
+mb.addvertex([0,1])
+mb.addedge([0,1])
+mb.addedge([1,2])
+mb.addedge([2,3])
+mb.addedge([3,0])
+var m = mb.build() 
+
+// Create a Field 
+var n = Field(m, Matrix([1,0]))
+
+// Set up a demo problem 
+var problem = OptimizationProblem(m)
+
+problem.addenergy(Length())
+
+var lin = LineIntegral(fn (x, n) { return (tangent().inner(n))^2 }, n) 
+problem.addenergy(lin)
+
+problem.addconstraint(NormSq(n), field=n)
+
+// Test the FieldAdapter 
+var fadapt = FieldAdapter(problem, n)
+
+print fadapt.get() // Get parameters 
+
+print fadapt.value() // Find the value 
+
+print fadapt.gradient() // Find gradient wrt field DOFs
+
+print fadapt.constraintvalue() // Show constraint values
+
+print fadapt.constraintgradient()[0] // Show constraint gradients 
