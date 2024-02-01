@@ -1,6 +1,6 @@
 # morpho-optimize3
 
-This experimental package provides a new optimizer for morpho. We expect this to replace the current optimize package in morpho 0.6. 
+This experimental package provides a new optimizer for morpho. We expect this to replace the current optimize package in morpho 0.6.
 
 ## Installation and Prerequisites
 
@@ -14,3 +14,8 @@ then add the location of this repository to your .morphopackages file.
 
 where PACKAGEPATH is the location of the git repository. 
 
+You can then use the package in morpho as usual by including 
+
+    import optimize3
+
+in your code.
