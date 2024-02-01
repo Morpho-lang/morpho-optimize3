@@ -15,7 +15,9 @@ var start = Matrix([0,0,0])
 var adapt = FunctionAdapter(func, start=start, constraints = [g])
 var padapt = PenaltyAdapter(adapt)
 
-var control = LineSearchController(padapt)
+// print padapt.hessian()//.format("%5.4f") 
+
+var control = NewtonController(padapt)
 
 for (i in 1..10) {
   padapt.setpenalty(10*padapt.penalty())
