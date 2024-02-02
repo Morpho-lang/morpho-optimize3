@@ -6,8 +6,6 @@
 
 * BarrierAdapter
 
-* ProxyController
-
 * FIREController
 
 * Incorporate constraints into Newton

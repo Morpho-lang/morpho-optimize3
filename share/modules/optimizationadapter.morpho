@@ -78,6 +78,10 @@ class DelegateAdapter is OptimizationAdapter {
  * ProxyAdapter class
  * -------------------------- */ 
 
+/** A ProxyAdapter calls the methods of a provided adapter, but caches values
+    to prevent multiple evaluations. Can provide a report of the number of 
+    evaluations of each quantity. */
+
 class ProxyAdapter is OptimizationAdapter {
   init(adapter) {
     self.adapter = adapter
