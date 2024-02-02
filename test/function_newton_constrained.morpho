@@ -43,10 +43,6 @@ class XNewtonController is OptimizationController {
 
     var A = self.kkt()
     var b = self.rhs()
-
-    print A.format("%6.2f")
-    print b.format("%6.2f")
-
     var sol = b/A
 
     var n = self.adapter.get().count() 
@@ -61,5 +57,9 @@ class XNewtonController is OptimizationController {
 var control = XNewtonController(adapt)
 control.optimize(10)
 
+print "Solution:"
 print adapt.get()
+print "KKT matrix:"
+print control.kkt().format("%6.2f")
+print "Eigenvalues:"
 print control.kkt().eigenvalues() 
