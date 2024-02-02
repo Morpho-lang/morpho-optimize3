@@ -48,6 +48,115 @@ class OptimizationAdapter {
   constrainthessian() { return nil }  // Returns the hessian(s) of any constraints as a list of matrices
 }
 
+/* --------------------------
+ * DelegateAdapter class
+ * -------------------------- */ 
+
+/** A delegate adapter fully implements the adapter protocol, but instead passes
+    method calls on to a second adapter. Useful as a base class for adapters 
+    that are intended to work with other adapters */
+
+class DelegateAdapter is OptimizationAdapter {
+  init(adapter) {
+    self.adapter = adapter
+  }
+
+  set(x) { self.adapter.set(x) }
+  get() { return self.adapter.get() }
+
+  value() { return self.adapter.value() }
+  gradient() { return self.adapter.gradient() }
+  hessian() { return self.adapter.hessian() }
+
+  countconstraints() { return self.adapter.countconstraints() } 
+  constraintvalue() { return self.adapter.constraintvalue() }
+  constraintgradient() { return self.adapter.constraintgradient() }
+  constrainthessian() { return self.adapter.constrainthessian() } 
+}
+
+/* --------------------------
+ * ProxyAdapter class
+ * -------------------------- */ 
+
+class ProxyAdapter is OptimizationAdapter {
+  init(adapter) {
+    self.adapter = adapter
+    self.reset() 
+    self.count = [0,0,0,0,0,0]
+  }
+
+  reset() {
+    self._value = nil 
+    self._gradient = nil 
+    self._hessian = nil 
+    self._constraintvalue = nil 
+    self._constraintgradient = nil 
+    self._constrainthessian = nil 
+  }
+
+  set(x) { 
+    self.adapter.set(x) 
+    self.reset() 
+  }
+  get() { return self.adapter.get() }
+
+  value() { 
+    if (self._value) return self._value 
+    self.count[0]+=1
+    return self.adapter.value() 
+  }
+
+  gradient() { 
+    if (self._gradient) return self._gradient 
+    self.count[1]+=1
+    return self.adapter.gradient()
+  }
+
+  hessian() { 
+    if (self._hessian) return self._hessian 
+    self.count[2]+=1
+    return self.adapter._hessian() 
+  }
+
+  countconstraints() { return self.adapter.countconstraints() } 
+
+  constraintvalue() { 
+    if (self._constraintvalue) return self._constraintvalue
+    self.count[3]+=1
+    return self.adapter.constraintvalue() 
+  }
+
+  constraintgradient() { 
+    if (self._constraintgradient) return self._constraintgradient
+    self.count[4]+=1
+    return self.adapter.constraintgradient() 
+  }
+
+  constrainthessian() {
+    if (self._constrainthessian) return self._constrainthessian
+    self.count[5]+=1
+    return self.adapter.constrainthessian() 
+  } 
+
+  countevals() {
+    return self.count 
+  }
+
+  report() {
+    var out = "" 
+    var desc = ("Fn", "Grad", "Hess", "Cons", "Cons grad", "Cons hess")
+
+    for (count, k in self.count) {
+      if (count>0) {
+        if (k>0) out+=", "
+        out+="${desc[k]} evals: ${count}"
+      }
+    }
+
+    print out 
+  }
+}
+
 /* -------------------------
  * FunctionAdapter 
  * ------------------------- */

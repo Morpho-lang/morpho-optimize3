@@ -229,7 +229,11 @@ class BFGSController is LineSearchController {
     var yk = self.adapter.gradient() - self._gradient
 
     var u = self.B*sk 
-    self.B += yk*yk.transpose()/yk.inner(sk) - u*u.transpose()/sk.inner(u)
+    var yksk = yk.inner(sk)
+    var sku = sk.inner(u)
+    if (yksk==0 || sku==0) { self.start(); return }
+
+    self.B += yk*yk.transpose()/yksk - u*u.transpose()/sku
   }
 }
 
@@ -249,9 +253,10 @@ class InvBFGSController is LineSearchController {
     var yk = self.adapter.gradient() - self._gradient
 
     var v = yk.inner(sk)
+    if (v==0) { self.B=self.I; return }
     var U = self.I - yk*sk.transpose()/v
 
-    self.B = U.transpose()*self.B*U + sk*sk.transpose()/yk.inner(sk)
+    self.B = U.transpose()*self.B*U + sk*sk.transpose()/v
   }
 }
 

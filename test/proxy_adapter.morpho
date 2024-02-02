@@ -14,8 +14,8 @@ var la = AreaEnclosed()
 problem.addconstraint(la)
 
 var adapt = MeshAdapter(problem, m)
-
-var padapt = PenaltyAdapter(adapt)
+var proxy = ProxyAdapter(adapt)
+var padapt = PenaltyAdapter(proxy)
 var control = LBFGSController(padapt)
 
 for (_ in 1..10) {
@@ -23,6 +23,5 @@ for (_ in 1..10) {
   control.optimize(1000)
 }
 
-import plot 
-
-Show(plotmesh(m))
+print proxy.countevals() 
+proxy.report() 
