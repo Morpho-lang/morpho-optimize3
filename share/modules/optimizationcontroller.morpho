@@ -224,6 +224,10 @@ class BFGSController is LineSearchController {
     self._direction = -self._gradient/self.B
   }
 
+  hessian() { // Return out estimate of the hessian
+    return self.B
+  }
+
   start() {
     self.B = IdentityMatrix(self.adapter.get().count())
   }

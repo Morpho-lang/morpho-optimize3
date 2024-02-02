@@ -35,7 +35,7 @@ class ConstrainedNewtonController is OptimizationController {
     var g = self._gradient 
     var c = self.adapter.constraintvalue() 
 
-    return Matrix([[-g], [-c]])
+    return -Matrix([[g], [c]])
   }
 
   searchdirection() {
