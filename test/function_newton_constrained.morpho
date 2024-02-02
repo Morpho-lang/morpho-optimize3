@@ -18,7 +18,7 @@ var start = Matrix([0,0,0,0])
 
 var adapt = FunctionAdapter(f, start=start, constraints = [g,h])
 
-class XNewtonController is OptimizationController {
+class ConstrainedNewtonController is OptimizationController {
   _joincolumnvectors(c) {
     return Matrix([c])
   }
@@ -54,7 +54,7 @@ class XNewtonController is OptimizationController {
   }
 }
 
-var control = XNewtonController(adapt)
+var control = ConstrainedNewtonController(adapt)
 control.optimize(10)
 
 print "Solution:"
