@@ -1480,7 +1480,8 @@ BFGSController
 
 \begin_layout Standard
 The BFGS algorithm aims to compute an estimate of the Hessian, or it's inverse,
- using 
+ using only gradient data.
+ 
 \end_layout
 
 \begin_layout Subsection

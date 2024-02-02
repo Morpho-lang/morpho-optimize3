@@ -1053,7 +1053,7 @@ The second is to monitor the change in the value of the objective function
 \[
 \begin{cases}
 \left|f_{k+1}-f_{k}\right|<\texttt{etol}, & \left|f_{k+1}\right|<\texttt{etol}\\
-\frac{\left|f_{k+1}-f_{k}\right|}{\left|f_{k+1}\right|}<\texttt{etol}, & \text{otherwise}
+\left|f_{k+1}-f_{k}\right|<\texttt{etol}\left|f_{k+1}\right|, & \text{otherwise}
 \end{cases}
 \]
 
