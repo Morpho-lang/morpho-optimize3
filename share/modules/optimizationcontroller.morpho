@@ -53,10 +53,11 @@ class OptimizationController {
   hasconverged() { // Check convergence
     // Convergence in value  |delta e|/|e| < etol or |delta e| < etol if e is < etol
     if (self._valuehistory && self._valuehistory.count()>1) {
-      // Compute relative change in value, or use absolute value if close to zero
-      var de = abs(self._valuehistory[-1]-self._valuehistory[-2])
-      if (abs(self._valuehistory[-1])>self.etol) de/=abs(self._valuehistory[-1])
+      var f1=self._valuehistory[-1], f2=self._valuehistory[-2]
 
+      // Compute relative change in value, or use absolute value if close to zero
+      var de = abs(f1-f2)
+      if (abs(f1)>self.etol) de/=(abs(f1))
       if (de < self.etol) return true 
     }
 
