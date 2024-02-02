@@ -885,15 +885,6 @@ countevaluations
  method.
 \end_layout
 
-\begin_layout Subsection
-DelegateAdapter
-\end_layout
-
-\begin_layout Standard
-Passes all method calls on to a provided adapter.
- Potentially useful to subclass 
-\end_layout
-
 \begin_layout Section
 OptimizationAdapter interface
 \end_layout

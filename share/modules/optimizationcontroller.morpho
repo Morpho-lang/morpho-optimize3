@@ -102,7 +102,10 @@ class OptimizationController {
       if (cval) constraintreport=", |cons| = ${cval.norm()}"
     }
 
-    print "Iteration ${iter}: ${self._value}, |grad| = ${self._gradient.norm()}${constraintreport}, stepsize=${self.stepsize}"   // Report 
+    var out =  "Iteration ${iter}: ${self._value}, |grad| = ${self._gradient.norm()}${constraintreport}" 
+    if (self.has("stepsize")) out += ", stepsize=${self.stepsize}"
+      
+    print out 
   }
 }
 
