@@ -1398,15 +1398,28 @@ noprefix "false"
 
  and then a linesearch is performed.
  NewtonController requires an OptimizationAdapter that can calculate a hessian
- and raises the error OptNoHess it it detects this is not the case.
+ and raises the error 
+\family typewriter
+OptNoHess
+\family default
+ it it detects this is not the case.
 \end_layout
 
 \begin_layout Subsection
 ConjugateGradientController
 \end_layout
 
+\begin_layout Standard
+
+\end_layout
+
 \begin_layout Subsection
 BFGSController
+\end_layout
+
+\begin_layout Standard
+The BFGS algorithm aims to compute an estimate of the Hessian, or it's inverse,
+ using 
 \end_layout
 
 \begin_layout Subsection

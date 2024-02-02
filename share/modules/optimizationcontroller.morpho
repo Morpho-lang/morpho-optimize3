@@ -189,41 +189,22 @@ class LineSearchController is GradientDescentController {
 class ConjugateGradientController is LineSearchController {
   start() {
     self._odirection = nil 
-    self._ogradient = nil 
-  }
-
-  post() {
-    self._odirection=self._direction
-    self._ogradient=self._gradient
-  }
-
-  fletcherreeves() {
-    var beta = self._gradient.inner(self._gradient)/self._ogradient.inner(self._ogradient)
-    return beta
-  }
-
-  polackribierre() {
-    var y = self._gradient - self._ogradient
-    var beta = self._gradient.inner(y)/self._ogradient.inner(self._ogradient)
-    return beta 
-  }
-
-  hagerzhang() {
-    var yk = self._gradient - self._ogradient
-    var dxy = self._odirection.inner(yk)
-    if (abs(dxy)<_eps) return 0
-    var beta = (yk - 2*yk.inner(yk)*self._odirection/dxy).inner(self._gradient)/dxy
-    return beta 
+    self._ogradient = nil
   }
 
   searchdirection() {
-    super.searchdirection() // Calculate new descent direction
-    if (!self._odirection) return
+    super.searchdirection()
 
-    var beta = self.polackribierre()
-    if (beta<0) return
+    if (!self._odirection) return 
+    var beta = self._gradient.inner(self._gradient) / self._ogradient.inner(self._ogradient) 
+    if (beta<0) return 
 
-    self._direction+=beta*self._odirection
+    self._direction = -self._gradient + beta*self._odirection
+  }
+
+  post() {
+    self._ogradient = self._gradient 
+    self._odirection = self._direction 
   }
 }
 
