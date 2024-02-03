@@ -297,16 +297,27 @@ where
 \begin_inset Formula $\mathbf{x}$
 \end_inset
 
- are its parameters, 
+ are its 
+\begin_inset Formula $N$
+\end_inset
+
+ parameters, 
 \begin_inset Formula $\mathbf{c}(\mathbf{x})$
 \end_inset
 
- is a vector of equality constrained functions, and 
+ is a vector of 
+\begin_inset Formula $N_{c}$
+\end_inset
+
+ equality constrained functions, and 
 \begin_inset Formula $\mathbf{d}$
 \end_inset
 
- is a vector of inequality constrained functions.
- 
+ is a vector of 
+\begin_inset Formula $N_{d}$
+\end_inset
+
+ inequality constrained functions.
 \end_layout
 
 \begin_layout Standard
@@ -357,7 +368,19 @@ We shall also use consistent notation for the gradient of the objective
 and its hessian, 
 \begin_inset Formula 
 \[
-\mathbf{H}=H_{ij}=\frac{\partial^{2}f}{\partial x_{i}\partial x_{j}}.
+\mathbf{H}=H_{ij}=\frac{\partial^{2}f}{\partial x_{i}\partial x_{j}}
+\]
+
+\end_inset
+
+as well as the 
+\begin_inset Formula $N\times N_{c}$
+\end_inset
+
+ matrix of the gradients of constraints, 
+\begin_inset Formula 
+\[
+\mathbf{C}=C_{ij}=\frac{\partial c_{j}}{\partial x_{i}}
 \]
 
 \end_inset
@@ -1490,6 +1513,91 @@ LBFGSController
 
 \begin_layout Section
 Constrained optimization
+\end_layout
+
+\begin_layout Subsection
+ConstraintReprojectionController
+\end_layout
+
+\begin_layout Standard
+Given an infeasible starting point, this controller aims to reproject the
+ OptimizationAdapter's parameters onto the feasible set by performing the
+ following iterations: First, the linear system,
+\begin_inset Formula 
+\[
+\mathbf{C}^{T}\mathbf{C}\mathbf{\lambda}=\mathbf{c},
+\]
+
+\end_inset
+
+is solved to identify scale factors 
+\begin_inset Formula $\lambda$
+\end_inset
+
+.
+ The updated parameters are,
+\begin_inset Formula 
+\[
+\mathbf{x}_{k+1}\leftarrow\mathbf{x}_{k}-\mathbf{C}\cdot\mathbf{\lambda},
+\]
+
+\end_inset
+
+until 
+\begin_inset Formula $\left|c\right|<\text{ctol}$
+\end_inset
+
+, at which point the parameters is in the feasible set.
+ 
+\end_layout
+
+\begin_layout Subsection
+ConstrainedNewtonController
+\end_layout
+
+\begin_layout Standard
+Performs Newton iterations for equality constrained problems by solving
+ the following linear system at each iteration,
+\begin_inset Formula 
+\begin{equation}
+\left(\begin{array}{cc}
+\mathbf{H} & \mathbf{C}\\
+\mathbf{C}^{T} & 0
+\end{array}\right)\left(\begin{array}{c}
+\Delta\mathbf{x}\\
+\Delta\lambda
+\end{array}\right)=-\left(\begin{array}{c}
+\mathbf{g}\\
+\mathbf{c}
+\end{array}\right),\label{eq:constrainednewton}
+\end{equation}
+
+\end_inset
+
+and updating parameters using the solution,
+\begin_inset Formula 
+\[
+\mathbf{x}_{k+1}\leftarrow\mathbf{x}_{k}+\Delta\mathbf{x}.
+\]
+
+\end_inset
+
+The matrix on the left hand side of 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:constrainednewton"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, known as the KKT matrix, is useful for determining the stability of optima;
+ it can obtained from the ConstrainedNewtonController by calling the 
+\family typewriter
+kkt
+\family default
+ method.
 \end_layout
 
 \end_body

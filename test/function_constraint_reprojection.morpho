@@ -1,0 +1,28 @@
+// Test Newton's method on a poorly scaled quadratic
+
+import optimize3
+
+fn f(x, y, z, u) {
+  return (x-0.5)^2 + 0.5*(y-1)^4 + 2*(z-2)^2 + u^2
+}
+
+fn g(x, y, z, u) {
+  return x + y - 1
+}
+
+fn h(x, y, z, u) {
+  return z + u - 1
+}
+
+var start = Matrix([0,2,0,-2])
+
+var adapt = FunctionAdapter(f, start=start, constraints = [g,h])
+
+print "Infeasible start:"
+print adapt.get()
+
+var control = ConstraintReprojectionController(adapt)
+control.optimize(10)
+
+print "Feasible point:"
+print adapt.get()
