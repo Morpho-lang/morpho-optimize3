@@ -1013,7 +1013,33 @@ In this chapter we review optimization algorithms available in the package,
  which are implemented as OptimizationControllers, with enough context to
  understand their relative utility.
  For a deeper understanding of these algorithms, the reader should consult
- standard textbooks on optimization theory.
+ standard textbooks on optimization theory
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Recommended texts include Nocedal and Wright, 
+\begin_inset Quotes eld
+\end_inset
+
+Numerical Optimization
+\begin_inset Quotes erd
+\end_inset
+
+ (Springer); Boyd and Vandenberghe 
+\begin_inset Quotes eld
+\end_inset
+
+Convex Optimization
+\begin_inset Quotes erd
+\end_inset
+
+ (Cambridge University Press).
+\end_layout
+
+\end_inset
+
+.
  
 \end_layout
 
@@ -1473,7 +1499,7 @@ NewtonController
 
 \begin_layout Standard
 The NewtonController class implements Newton updates: in each iteration
- a search direction is identified from Eq.
+ a search direction is identified by solving Eq.
  
 \begin_inset CommandInset ref
 LatexCommand ref
@@ -1497,6 +1523,44 @@ OptNoHess
 ConjugateGradientController
 \end_layout
 
+\begin_layout Standard
+The conjugate gradient algorithm performs linesearches, but computes the
+ search direction using information from the prior iteration.
+ The resulting algorithm improves convergence on objective functions that
+ have long, narrow valleys and uses gradient information only.
+ As for gradient descent the search direction is initially,
+\begin_inset Formula 
+\[
+\mathbf{d}_{0}=-\mathbf{g}_{0},
+\]
+
+\end_inset
+
+and then in successive iterations the direction is computed, 
+\begin_inset Formula 
+\[
+\mathbf{d}_{k+1}=-\mathbf{g}_{k+1}+\beta_{k}\mathbf{d}_{k}.
+\]
+
+\end_inset
+
+The scaling 
+\begin_inset Formula $\beta_{k}$
+\end_inset
+
+ may be computed in several different ways, leading to different flavors
+ of the algorithm.
+ For example, the Fletcher-Reeves formula is, 
+\begin_inset Formula 
+\[
+\beta_{k}=\frac{\mathbf{g}_{k+1}\cdot\mathbf{g}_{k+1}}{\mathbf{g}_{k}\cdot\mathbf{g}_{k}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Subsection
 BFGSController
 \end_layout
@@ -1504,7 +1568,7 @@ BFGSController
 \begin_layout Standard
 The BFGS algorithm aims to compute an estimate of the Hessian, or it's inverse,
  using only gradient data.
- 
+ The estimate is initially set to the identity matrix, 
 \end_layout
 
 \begin_layout Subsection

@@ -8,8 +8,8 @@
 
 * FIREController
 
-* Incorporate constraints into Newton
-
 * Inequality constraints
 
-* ConstraintReprojectionController ?
+* Local constraints 
+
+* Matrices in constraint 
