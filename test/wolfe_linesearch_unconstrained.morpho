@@ -147,7 +147,7 @@ class WolfeLineSearchController is GradientDescentController {
       var dfalpha = self._gradient.inner(self._direction)
 
       if (abs(dfalpha) <= self.c2*abs(df)) { // Curvature test
-        if (self.verbose) print "  Curvature test succeeded alpha=${alpha}"
+        if (self.verbose) print "  Curvature test succeeded alpha=${alpha.format("%.16g")}"
         self.stepsize = alpha // Success
         if (self.verbose) print self.adapter.get()
         return 
@@ -215,7 +215,7 @@ var adapt = FunctionAdapter(f, start=Matrix(5))
 
 var proxy = ProxyAdapter(adapt)
 //var control = XLineSearchController(proxy)
-var control = WolfeLineSearchController(proxy, c2=0.2)
+var control = WolfeLineSearchController(proxy, c2=0.2, verbose=false)
 
 control.optimize(10000)
 print adapt.get()
