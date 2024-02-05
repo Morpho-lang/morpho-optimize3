@@ -51,14 +51,17 @@ class XLineSearchController is GradientDescentController {
 
 }
 
+var _OptLnSrchZm = Error("OptLnSrchZm", "Maximum iterations exceeded in linesearch interval identification.")
+
 // Linesearches that satisfy strong Wolfe conditions 
 // See Nocedal and Wright Chapter 3, p60
 // See also SciPy implementation https://indrag49.github.io/Numerical-Optimization/line-search-descent-methods.html#selection-of-step-length
 
 class WolfeLineSearchController is GradientDescentController {
-  init(adapter, quiet=false, stepsize=1, steplimit=2, c1=1e-4, c2=0.9) {
+  init(adapter, quiet=false, verbose=false, stepsize=1, steplimit=2, c1=1e-3, c2=0.9) {
     super.init(adapter, quiet=quiet)
     self.maxsteps = 50 // Maximum steps for reducing stepsize
+    self.verbose = verbose 
     self.stepsize = stepsize   // Initial stepsize
     self.steplimit = steplimit // Stepsize limit
     self.c1 = c1 // } Coefficients 
@@ -86,30 +89,37 @@ class WolfeLineSearchController is GradientDescentController {
     var alphalo = alphalo0, alphahi = alphahi0
     var flo = self.stepwith(x0, alphalo)
 
-    for (_ in 1..10) {
+    for (_ in 1..self.maxsteps) {
+      if (self.verbose) print "  Zoom iteration ${_}: (${alphalo},${alphahi}) [${flo}, ${self.stepwith(x0, alphahi)}]"
       var alpha = (alphalo+alphahi)/2 // Bisection
 
       var f = self.stepwith(x0, alpha)
 
       if (f>f0+self.c1*alpha*df || // Armijo condition
           f >= flo) {
+            if (self.verbose) print "    Armijo test failed; reduce stepsize"
             alphahi = alpha 
       } else {
         self.gradient() 
         var dfalpha = self._gradient.inner(self._direction)
 
+        if (self.verbose) print "    Testing curvature condition: ${abs(dfalpha)} <= ${self.c2*abs(df)}"
         if (abs(dfalpha) <= self.c2*abs(df)) { // Curvature condition
+          if (self.verbose) print "    Curvature condition succeeded alpha=${alpha.format("%.16g")}"
           self.stepsize = alpha 
           return 
         } else if (dfalpha*(alphahi-alphalo)>=0) {
+          if (self.verbose) print "    Swap intervals"
           alphahi = alphalo 
         }
+
+        if (self.verbose) print "    Increase stepsize "
         alphalo = alpha  
+        flo = f 
       }
     }
  
-    // raise error 
-    return 
+    _OptLnSrchZm.warning() 
   }
 
   step() { // Perform a single linesearch; Alg. 3.5 of N&D
@@ -123,11 +133,13 @@ class WolfeLineSearchController is GradientDescentController {
     var oalpha=0
     var of = f0 
 
-    for (_ in 1..10) {
+    for (_ in 1..self.maxsteps) {
       var f = self.stepwith(x0, alpha)
+      if (self.verbose) print "  ls iteration ${_}: alpha=${alpha} f=${f}"
 
       if (f>f0+self.c1*alpha*df ||
           f>=of) { // Step is too long if Armijo test fails or the function simply increased
+        if (self.verbose) print "  Armijo test failed; zooming on interval (${oalpha},${alpha})"
         return self._zoom(oalpha, alpha, x0, f0, df) 
       }
 
@@ -135,47 +147,64 @@ class WolfeLineSearchController is GradientDescentController {
       var dfalpha = self._gradient.inner(self._direction)
 
       if (abs(dfalpha) <= self.c2*abs(df)) { // Curvature test
+        if (self.verbose) print "  Curvature test succeeded alpha=${alpha}"
         self.stepsize = alpha // Success
+        if (self.verbose) print self.adapter.get()
         return 
       }
 
       if (dfalpha>=0) { // Gradient is upward so reduce stepsize
+        if (self.verbose) print "  Upward gradient detected; zooming on interval (${alpha},${oalpha})"
         return self._zoom(alpha, oalpha, x0, f0, df)
       }
       
       of = f 
       oalpha = alpha 
 
-      alpha = self._interpolate(f0, df, alpha, f)
-      //alpha = (alpha+self.steplimit)/2
+      //alpha = self._interpolate(f0, df, alpha, f)
+      alpha = min(2*alpha, self.steplimit)
     }
+
+    if (self.verbose) print "Too many iterations in step."
   }
 }
 
+fn rosenbrock(...x) { // Sharp curved valley around minimum
+  var n = x.count() 
+  var sum = 0 
+  for (var i=0; i<n-1; i+=1) {
+      sum+=100*(x[i+1] - x[i]^2)^2 + (1-x[i])^2
+  }
+  return sum 
+}
 
-
+/*
 
 fn func(x, y) {
     return (x^2 + y - 11)^2 + (x + y^2 - 7)^2
 }
 
 var start = Matrix([-2.5,2.8])
+*/
 
-var adapt = FunctionAdapter(func, start=start)
+var start = Matrix([-2.2,3])
+var adapt = FunctionAdapter(rosenbrock, start=start)
 
 
 /*
 fn func(x, y, z) {
     return (x-0.5)^2 + (y-1)^2 + 0.25*(z-4)^2
 }
-
-var start = Matrix([20,3.1,0])
-
-var adapt = FunctionAdapter(func, start=start)
-
 */
 
 /*
+var start = Matrix([20,3.1])
+
+var adapt = FunctionAdapter(func, start=start)
+*/
+
+/*
+
 import "quadratic.morpho"
 
 var f = Quadratic([1.3, -0.5, 0.9, 1.2, 5], [1,5,0.1,3,0.1]).func() 
@@ -186,9 +215,9 @@ var adapt = FunctionAdapter(f, start=Matrix(5))
 
 var proxy = ProxyAdapter(adapt)
 //var control = XLineSearchController(proxy)
-var control = WolfeLineSearchController(proxy)
+var control = WolfeLineSearchController(proxy, c2=0.2)
 
-control.optimize(1000)
+control.optimize(10000)
 print adapt.get()
 
 proxy.report()
