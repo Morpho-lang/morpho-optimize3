@@ -25,13 +25,39 @@ class ConstrainedLBFGSController is LBFGSController {
     self._lambda = Matrix(self.adapter.countconstraints())
   }
 
+  _hmul(p) { // Compute the action of our approximation to the inv H on a vector 
+    var q = p
+
+    var n = self._storage.count() 
+    if (n==0) return q
+    
+    var alpha[n]
+
+    // Project off all components of p that lie in the history directions
+    for (k in n-1..0:-1) { // Start with most recent
+      var z = self._storage[k]
+      var sk = z[0], yk = z[1], rho = 1/z[2]
+      alpha[k] = rho*sk.inner(q)
+      q-=alpha[k]*yk
+    } 
+
+    var zl = self._storage[-1] // Last 
+    var r = (zl[2]/zl[3])*q // (sk.yk)/(yk.yk)
+
+    for (z, k in self._storage) { // Work forwards
+      var sk = z[0], yk = z[1], rho = 1/z[2]
+      var beta = rho*yk.inner(r)
+      r+=sk*(alpha[k]-beta)
+    }
+
+    return r 
+  }
+
   searchdirection() {
     super.gradient()
 
     var cg = self.adapter.constraintgradient() 
     var a = Matrix([cg])
-
-    print a 
 
     var hinva = self._hmul(a)
     var aT = a.transpose()
@@ -47,13 +73,7 @@ class ConstrainedLBFGSController is LBFGSController {
     var sinvc = c/S 
 
     self._direction = hinvg + hinva * (sainvg - sinvc)
-    self._dlambda = -sainvg + sinvc
-
-    //print self._direction 
-    //print self._dlambda 
-
-    //print self._lambda  
-
+    //self._dlambda = -sainvg + sinvc 
   }
 }
 
