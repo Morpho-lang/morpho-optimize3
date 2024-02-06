@@ -56,6 +56,7 @@ var _OptLnSrchZm = Error("OptLnSrchZm", "Maximum iterations exceeded in linesear
 // Linesearches that satisfy strong Wolfe conditions 
 // See Nocedal and Wright Chapter 3, p60
 // See also SciPy implementation https://indrag49.github.io/Numerical-Optimization/line-search-descent-methods.html#selection-of-step-length
+// See also an implementation at https://github.com/gjkennedy/ae6310/blob/master/Line%20Search%20Algorithms.ipynb
 
 class WolfeLineSearchController is GradientDescentController {
   init(adapter, quiet=false, verbose=false, stepsize=1, steplimit=2, c1=1e-3, c2=0.9) {
@@ -166,6 +167,15 @@ class WolfeLineSearchController is GradientDescentController {
     }
 
     if (self.verbose) print "Too many iterations in step."
+  }
+
+  _interpolate(x0,x1,f0,f1,df0,df1) { // Cubic interpolation Nocedal p59
+    var d1 = df0 + df1 - 3*(f1-f0)/(x1-x0)
+    var s = d1^2-df0*df1
+    if (s<0) return (x0+x1)/2
+    var d2 = sign(x1-x0)*sqrt(s)
+
+    return x1-(x1-x0)*(df1+d2-d1)/(df1-df0-2*d2) // Should check if outside interval
   }
 }
 
