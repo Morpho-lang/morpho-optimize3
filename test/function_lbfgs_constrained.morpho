@@ -1,0 +1,65 @@
+// Test LBFGS on a poorly scaled quadratic
+
+import optimize3
+
+fn f(x, y, z, u) {
+  return (x-0.5)^2 + 0.5*(y-1)^2 + 2*(z-2)^2 + u^2
+}
+
+fn g(x, y, z, u) {
+  return x + y - 1
+}
+
+fn h(x, y, z, u) {
+  return z + u - 1
+}
+
+var start = Matrix([0,0,0,0])
+
+var adapt = FunctionAdapter(f, start=start, constraints = [g])
+
+class ConstrainedLBFGSController is LBFGSController {
+  start() {
+    super.start()
+
+    self._lambda = Matrix(self.adapter.countconstraints())
+  }
+
+  searchdirection() {
+    super.gradient()
+
+    var cg = self.adapter.constraintgradient() 
+    var a = Matrix([cg])
+
+    print a 
+
+    var hinva = self._hmul(a)
+    var aT = a.transpose()
+    var S = - aT*hinva // Schur complement
+
+    // Evaluate rhs of the Newton problem
+    var g = -self._gradient
+    var c = -self.adapter.constraintvalue() 
+
+    // Evaluate the action of Inv(A) on the rhs of Newton
+    var hinvg = self._hmul(g)
+    var sainvg = aT*hinvg/S 
+    var sinvc = c/S 
+
+    self._direction = hinvg + hinva * (sainvg - sinvc)
+    self._dlambda = -sainvg + sinvc
+
+    //print self._direction 
+    //print self._dlambda 
+
+    //print self._lambda  
+
+  }
+}
+
+var control = ConstrainedLBFGSController(adapt)
+
+control.optimize(50)
+
+print "Solution:"
+print adapt.get()
