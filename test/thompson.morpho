@@ -24,7 +24,7 @@ problem.addenergy(lv)
 var lsph = ScalarPotential(fn (x,y,z) x^2+y^2+z^2-1)
 problem.addlocalconstraint(lsph)
 
-fn localcons(mesh, func) {
+fn consgrad(mesh, func) {
     var grad = func.gradient(mesh)
     var dim = grad.dimensions()
     var ndof = dim[0], ncol = dim[1]
@@ -38,7 +38,15 @@ fn localcons(mesh, func) {
     return s 
 }
 
-print localcons(mesh, lsph)
+fn consval(mesh, func) {
+    return func.integrand(mesh)
+}
+
+//print consval(mesh, lsph)
+
+var adapt = MeshAdapter(problem, mesh) 
+
+print adapt.constraintvalue()
 
 /*var g = Graphics()
 for (i in 0...mesh.count()) {

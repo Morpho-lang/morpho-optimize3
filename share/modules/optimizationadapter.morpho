@@ -291,7 +291,7 @@ class FunctionAdapter is OptimizationAdapter {
 
     var val = Matrix(self.countconstraints())
     for (c, k in self.constraints) val[k]=apply(c, self._listify(self.x))
-    return Matrix(val)
+    return val
   }   
 
   constraintgradient() { 
@@ -324,6 +324,7 @@ class ProblemAdapter is OptimizationAdapter {
 
   energies() { return self.problem.energies }       // Obtain energies and constraints from the problem 
   constraints() { return self.problem.constraints }
+  localconstraints() { return self.problem.localconstraints }
 
   includefunctional(func) { return true } // Does a functional depend on the target? 
   includeconstraint(cons) { return true } // Does a constraint refer to the target? 
@@ -334,6 +335,17 @@ class ProblemAdapter is OptimizationAdapter {
       val=func.functional.total(self.target, func.selection)
     } else {
       val=func.functional.total(self.target)
+    }
+    if (func.prefactor) val*=func.prefactor
+    return val
+  }
+
+  integrandForFunctional(func) { // Calculates the value of a given Functional object 
+    var val
+    if (func.selection) {
+      val=func.functional.integrand(self.target, func.selection)
+    } else {
+      val=func.functional.integrand(self.target)
     }
     if (func.prefactor) val*=func.prefactor
     return val
@@ -370,17 +382,36 @@ class ProblemAdapter is OptimizationAdapter {
 
       cval.append(val)
     }
-    return Matrix(cval)
+
+    for (cons in self.localconstraints()) { // TODO: Handle selections correctly
+      if (!self.includeconstraint(cons)) continue 
+
+      var val = self.integrandForFunctional(cons) 
+      if (cons.has("target")) val-=cons.target
+
+      cval.append(val)
+    }
+
+    return cval
   }
+
+  localconstraintgradient(cons) { return nil }
 
   constraintgradient() {
     var cgrad = []
-    for (en in self.constraints()) {
-      if (!self.includeconstraint(en)) continue 
-      var grad=self.gradientForFunctional(en)
+    for (cons in self.constraints()) {
+      if (!self.includeconstraint(cons)) continue 
+      var grad=self.gradientForFunctional(cons)
       _columnize(grad)
       cgrad.append(grad)      
     }
+
+    for (cons in self.localconstraints()) { // TODO: Handle selections correctly
+      if (!self.includeconstraint(cons)) continue 
+      var grad = self.localconstraintgradient(cons) 
+      cgrad.append(grad)
+    }
+
     return cgrad
   }
 
@@ -431,6 +462,10 @@ class MeshAdapter is ProblemAdapter {
     }
     if (func.prefactor) val*=func.prefactor
     return val
+  }
+
+  localconstraintgradient(func) {
+    return nil 
   }
 
   includeconstraint(c) { return (c.field==nil) }

@@ -98,7 +98,7 @@ class OptimizationController {
 
     var constraintreport = ""
     if (self.adapter.countconstraints()>0) {
-      var cval = self.adapter.constraintvalue()
+      var cval = Matrix(self.adapter.constraintvalue())
       if (cval) constraintreport=", |cons| = ${cval.norm()}"
     }
 
@@ -357,7 +357,7 @@ class NewtonController is LineSearchController {
 
 class ConstraintReprojectionController is OptimizationController {
   value() { 
-    self._cvalue = self.adapter.constraintvalue()
+    self._cvalue = Matrix(self.adapter.constraintvalue())
     self._value = self._cvalue.norm() 
   }
 
@@ -408,7 +408,7 @@ class ConstraintPostprojection {
     var dv = Matrix(1)
 
     for (_ in 1..self.maxconsiterations) {
-      dv = self.adapter.constraintvalue()
+      dv = Matrix(self.adapter.constraintvalue())
 
       if (dv.norm()<self.ctol) return 
 
