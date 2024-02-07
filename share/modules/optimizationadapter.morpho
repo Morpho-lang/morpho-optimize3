@@ -372,6 +372,16 @@ class ProblemAdapter is OptimizationAdapter {
     return grad
   }
 
+  _combineconstraintvalues(cval) {
+    var lst = []
+    for (el in cval) {
+      if (isnumber(el)) lst.append([Matrix([el])])
+      else if (ismatrix(el)) lst.append([el])
+    }
+
+    return Matrix(lst)
+  }
+
   constraintvalue() {
     var cval = []
     for (cons in self.constraints()) {
@@ -386,13 +396,13 @@ class ProblemAdapter is OptimizationAdapter {
     for (cons in self.localconstraints()) { // TODO: Handle selections correctly
       if (!self.includeconstraint(cons)) continue 
 
-      var val = self.integrandForFunctional(cons) 
+      var val = self.integrandForFunctional(cons).transpose() 
       if (cons.has("target")) val-=cons.target
 
       cval.append(val)
     }
 
-    return cval
+    return self._combineconstraintvalues(cval)
   }
 
   localconstraintgradient(cons) { return nil }
@@ -412,13 +422,16 @@ class ProblemAdapter is OptimizationAdapter {
       cgrad.append(grad)
     }
 
-    return cgrad
+    return Matrix([cgrad]) // Condense matrices
   }
 
   countconstraints() { 
     var count = 0
     for (cons in self.constraints()) {
       if (self.includeconstraint(cons)) count+=1
+    }
+    for (cons in self.localconstraints()) {
+      if (self.includeconstraint(cons)) count+=self.target.count() // TEMPORARY
     }
     return count
   }
@@ -464,8 +477,18 @@ class MeshAdapter is ProblemAdapter {
     return val
   }
 
-  localconstraintgradient(func) {
-    return nil 
+  localconstraintgradient(cons) {
+    var grad = cons.functional.gradient(self.target)
+    var dim = grad.dimensions()
+    var ndof = dim[0], ncol = dim[1]
+
+    var s = Sparse(ndof*ncol,ncol)
+
+    for (i in 0...ncol) {
+        for (x, j in grad.column(i)) s[i*ndof+j,i]=x
+    }
+
+    return s 
   }
 
   includeconstraint(c) { return (c.field==nil) }

@@ -3,17 +3,29 @@
 import meshtools 
 import optimize3
 import functionals
-import plot 
 
 var Np = 12 // Number of particles
 
+var pts = [ [  0.701285, -0.707584,  0.0867426 ],
+            [  0.170413, -0.273859, -0.946552  ],
+            [ -0.740671, -0.363225, -0.56522   ],
+            [ -0.618297, -0.760337,  0.198988  ],
+            [ -0.519574, -0.784991,  0.337392  ],
+            [  0.443006,  0.260568, -0.857817  ],
+            [  0.180624, -0.730670, -0.658404  ],
+            [  0.637356,  0.550955,  0.538726  ],
+            [  0.630639, -0.233666,  0.740064  ],
+            [  0.415517, -0.366144, -0.832637  ],
+            [  0.851606, 0.0574065, -0.521029  ],
+            [ -0.534275,    0.6147,  0.580253  ] ]
+
 var build = MeshBuilder()
-for (i in 1..Np) {
-  var x = Matrix([2*random()-1, 2*random()-1, 2*random()-1])
+for (pt in pts) {
+  var x = Matrix(pt)
   x/=x.norm() // Project onto unit sphere
   build.addvertex(x)
 }
-var mesh = build.build() // Tell the MeshBuilder to build the mesh
+var mesh = build.build() // Tell the MeshBuilder to build the mesh 
 
 // Specify the problem
 var problem = OptimizationProblem(mesh)
@@ -24,29 +36,11 @@ problem.addenergy(lv)
 var lsph = ScalarPotential(fn (x,y,z) x^2+y^2+z^2-1)
 problem.addlocalconstraint(lsph)
 
-fn consgrad(mesh, func) {
-    var grad = func.gradient(mesh)
-    var dim = grad.dimensions()
-    var ndof = dim[0], ncol = dim[1]
-
-    var s = Sparse(ndof*ncol,ncol)
-
-    for (i in 0...ncol) {
-        for (x, j in grad.column(i)) s[i*ndof+j,i]=x
-    }
-
-    return s 
-}
-
-fn consval(mesh, func) {
-    return func.integrand(mesh)
-}
-
-//print consval(mesh, lsph)
-
 var adapt = MeshAdapter(problem, mesh) 
+var proxy = ProxyAdapter(adapt)
 
-print adapt.constraintvalue()
+var control = ConstrainedLBFGSController(proxy)
+control.optimize(10)
 
 /*var g = Graphics()
 for (i in 0...mesh.count()) {
