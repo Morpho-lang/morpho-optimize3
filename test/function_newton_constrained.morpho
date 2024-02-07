@@ -18,42 +18,6 @@ var start = Matrix([0,0,0,0])
 
 var adapt = FunctionAdapter(f, start=start, constraints = [g,h])
 
-class ConstrainedNewtonController is OptimizationController {
-  _joincolumnvectors(c) {
-    return Matrix([c])
-  }
-
-  kkt() {
-    var H = self.adapter.hessian() 
-    var cg = self.adapter.constraintgradient() 
-
-    var a = self._joincolumnvectors(cg)
-    return Matrix([[H, a], [a.transpose(), 0]])
-  }
-
-  rhs() {
-    var g = self._gradient 
-    var c = self.adapter.constraintvalue() 
-
-    return -Matrix([[g], [c]])
-  }
-
-  searchdirection() {
-    super.gradient()
-
-    var A = self.kkt()
-    var b = self.rhs()
-    var sol = b/A
-
-    var n = self.adapter.get().count() 
-    self._update = sol[0...n]
-  }
-
-  step() { 
-    self.adapter.set(self.adapter.get() + self._update)
-  }
-}
-
 var control = ConstrainedNewtonController(adapt)
 control.optimize(10)
 

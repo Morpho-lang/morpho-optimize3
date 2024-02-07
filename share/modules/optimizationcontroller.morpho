@@ -134,6 +134,10 @@ class GradientDescentController is OptimizationController {
   }
 }
 
+/* ************************************************************
+ * Line search methods
+ * ************************************************************ */ 
+
 /* -----------------------------------------
  * LineSearchController
  * 
@@ -181,6 +185,25 @@ class LineSearchController is GradientDescentController {
     if (!success) _OptLnSrchStpsz.warning()
 
     self.stepsize=t
+  }
+}
+
+/* ************************************************************
+ * Newton and quasi-Newton methods
+ * ************************************************************ */ 
+
+/* -----------------------------------------
+ * Newton's method
+ * ----------------------------------------- */ 
+
+class NewtonController is LineSearchController {
+  searchdirection() {
+    super.searchdirection()
+    
+    var H = self.adapter.hessian() 
+    if (!H) _OptNoHess.throw("NewtonController can't use ${self.adapter.clss()} because it doesn't provide a hessian.") 
+
+    self._direction = self._direction/H // direction was already -grad from superclass
   }
 }
 
@@ -245,6 +268,12 @@ class BFGSController is LineSearchController {
   }
 }
 
+/* -----------------------------------------
+ * InvBFGSController
+ * 
+ * BFGS estimating the inverse hessian
+ * ----------------------------------------- */ 
+
 class InvBFGSController is LineSearchController {
   searchdirection() { // Determine the search direction
     super.searchdirection()
@@ -286,7 +315,7 @@ class LBFGSController is LineSearchController {
     return a 
   }
 
-  _hmul(p) { // Compute the action of our approximation to the inv H on a vector 
+  _hmul(p) { // Compute the action of our approximation to the inv H on a vector or matrix 
     var q = p
 
     var n = self._storage.count() 
@@ -298,8 +327,9 @@ class LBFGSController is LineSearchController {
     for (k in n-1..0:-1) { // Start with most recent
       var z = self._storage[k]
       var sk = z[0], yk = z[1], rho = 1/z[2]
-      alpha[k] = rho*sk.inner(q)
-      q-=alpha[k]*yk
+
+      alpha[k] = rho * sk.transpose()*q //sk.inner(q)
+      q-=yk*alpha[k]
     } 
 
     var zl = self._storage[-1] // Last 
@@ -307,7 +337,8 @@ class LBFGSController is LineSearchController {
 
     for (z, k in self._storage) { // Work forwards
       var sk = z[0], yk = z[1], rho = 1/z[2]
-      var beta = rho*yk.inner(r)
+
+      var beta = rho * yk.transpose()*r// rho*yk.inner(r)
       r+=sk*(alpha[k]-beta)
     }
 
@@ -324,7 +355,7 @@ class LBFGSController is LineSearchController {
     self._direction = -self._hmul(self._gradient)
   }
 
-  post() {
+  post() { // Update our estimate of the inverse Hessian
     var sk = self.stepsize * self._direction
     var yk = self.adapter.gradient() - self._gradient
 
@@ -334,18 +365,78 @@ class LBFGSController is LineSearchController {
   }
 }
 
+/* ************************************************************
+ * Constrained Optimization
+ * ************************************************************ */ 
+
 /* -----------------------------------------
- * Newton's method
+ * ConstrainedNewtonController
+ * 
+ * Constrained version of Newton
  * ----------------------------------------- */ 
 
-class NewtonController is LineSearchController {
-  searchdirection() {
-    super.searchdirection()
-    
-    var H = self.adapter.hessian() 
-    if (!H) _OptNoHess.throw("NewtonController can't use ${self.adapter.clss()} because it doesn't provide a hessian.") 
+class ConstrainedNewtonController is OptimizationController {
+  _joincolumnvectors(c) {
+    return Matrix([c])
+  }
 
-    self._direction = self._direction/H // direction was already -grad from superclass
+  kkt() {
+    var H = self.adapter.hessian() 
+    var cg = self.adapter.constraintgradient() 
+
+    var a = self._joincolumnvectors(cg)
+    return Matrix([[H, a], [a.transpose(), 0]])
+  }
+
+  rhs() {
+    var g = self._gradient 
+    var c = self.adapter.constraintvalue() 
+
+    return -Matrix([[g], [c]])
+  }
+
+  searchdirection() {
+    super.gradient()
+
+    var A = self.kkt()
+    var b = self.rhs()
+    var sol = b/A
+
+    var n = self.adapter.get().count() 
+    self._update = sol[0...n]
+  }
+
+  step() { 
+    self.adapter.set(self.adapter.get() + self._update)
+  }
+}
+
+/* -----------------------------------------
+ * ConstrainedLBFGSController
+ * 
+ * Constrained version of LBFGS
+ * ----------------------------------------- */ 
+
+class ConstrainedLBFGSController is LBFGSController {
+  searchdirection() {
+    super.gradient()
+
+    var cg = self.adapter.constraintgradient() 
+    var a = Matrix([cg])
+
+    var hinva = self._hmul(a)
+    var aT = a.transpose()
+    var S = - aT*hinva // Schur complement
+
+    // Evaluate rhs of the Newton problem
+    var g = -self._gradient
+    var c = -self.adapter.constraintvalue() 
+
+    // Evaluate the action of Inv(A) on the rhs of Newton
+    var hinvg = self._hmul(g)
+    var ss = (aT*hinvg-c)/S
+
+    self._direction = hinvg + hinva * ss
   }
 }
 

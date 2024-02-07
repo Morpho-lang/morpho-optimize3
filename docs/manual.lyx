@@ -1897,7 +1897,7 @@ Note that it is also necessary to solve a linear system to obtain the quantities
 \begin_inset Formula $\Delta\lambda$
 \end_inset
 
- need not be computed since they are not explicitly required in the algorithm.
+ need not be computed since they are not explicitly required by the algorithm.
 \end_layout
 
 \end_body
