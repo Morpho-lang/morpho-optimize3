@@ -1015,7 +1015,7 @@ In this chapter we review optimization algorithms available in the package,
  For a deeper understanding of these algorithms, the reader should consult
  standard textbooks on optimization theory
 \begin_inset Foot
-status open
+status collapsed
 
 \begin_layout Plain Layout
 Recommended texts include Nocedal and Wright, 
@@ -1126,8 +1126,8 @@ i.e.
 \end_layout
 
 \begin_layout Standard
-If, during optimization either of these convergence criteria are true, then
- the optimization terminates.
+If, during optimization, either of these convergence criteria become true
+ then the optimization terminates.
  
 \end_layout
 
@@ -1217,8 +1217,9 @@ var control = GradientDescentController(adapter, stepsize=0.1)
 
 \begin_layout Standard
 While GradientDescentController is rarely useful directly, it is sometimes
- helpful in very constrained problems (where linesearches offer little benefit)
- or to establish that a new OptimizationAdapter is indeed working correctly.
+ helpful in very constrained problems (where linesearches may offer little
+ benefit) or to establish that a new OptimizationAdapter is indeed working
+ correctly.
  
 \end_layout
 
@@ -1231,7 +1232,7 @@ An improvement in performance can be obtained by considering the one parameter
  subproblem,
 \begin_inset Formula 
 \begin{equation}
-\min_{\alpha_{k}}f(\mathbf{x}_{k}+\gamma_{k}\mathbf{d}_{k})\label{eq:Linesearchproblem}
+\min_{\gamma_{k}}f(\mathbf{x}_{k}+\gamma_{k}\mathbf{d}_{k})\label{eq:Linesearchproblem}
 \end{equation}
 
 \end_inset
@@ -1389,8 +1390,8 @@ noprefix "false"
 
 \end_inset
 
- to high precision, an ExactLineSearchController will be provided to do
- so if necessary.
+ to high precision, an ExactLineSearchController will be provided in future
+ to do so if necessary.
  This controller performs a 1D minimization using Brent's algorithm.
  
 \end_layout
@@ -1566,13 +1567,90 @@ BFGSController
 \end_layout
 
 \begin_layout Standard
-The BFGS algorithm aims to compute an estimate of the Hessian, or it's inverse,
- using only gradient data.
+The BFGS algorithm aims to compute an improved estimate of the Hessian at
+ each iteration using only the change in parameter values 
+\begin_inset Formula $\mathbf{s}_{k}=\mathbf{x}_{k+1}-\mathbf{x}_{k}$
+\end_inset
+
+ and the change in gradient 
+\begin_inset Formula $\mathbf{y}_{k}=\mathbf{g}_{k+1}-\mathbf{g}_{k}$
+\end_inset
+
+.
  The estimate is initially set to the identity matrix, 
+\begin_inset Formula 
+\[
+\mathcal{H}_{0}=\mathbf{I},
+\]
+
+\end_inset
+
+and then updated after each iteration using the formula,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mathbf{\mathcal{H}}_{k+1}=\mathcal{H}_{k}+\frac{\mathbf{y}_{k}\mathbf{y}_{k}^{T}}{\mathbf{y}_{k}^{T}\mathbf{s}_{k}}-\frac{\mathbf{\mathcal{H}}_{k}\mathbf{s}_{k}\mathbf{s}_{k}^{T}\mathbf{\mathcal{H}}_{k}^{T}}{\mathbf{s}_{k}^{T}\mathbf{\mathcal{H}}_{k}\mathbf{s}_{k}}.
+\]
+
+\end_inset
+
+At each iteration, the current BFGS estimate of the Hessian is used to solve
+ the linear system, 
+\begin_inset Formula 
+\begin{equation}
+\mathbf{\mathcal{H}}_{k}\mathbf{d}_{k}=-\mathbf{g}_{k},\label{eq:LBFGSsolve}
+\end{equation}
+
+\end_inset
+
+to obtain a search direction 
+\begin_inset Formula $\mathbf{d}_{k}$
+\end_inset
+
+ that is then used as the basis of a linesearch.
+ 
+\end_layout
+
+\begin_layout Subsection
+InvBFGSController
+\end_layout
+
+\begin_layout Standard
+This controller implements a variant of the BFGS algorithm that avoids the
+ need to explicitly solve 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:LBFGSsolve"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+; instead successive estimates of the inverse Hessian, 
+\begin_inset Formula $\mathcal{H}_{k}^{-1}$
+\end_inset
+
+, are built from an initial identity matrix.
 \end_layout
 
 \begin_layout Subsection
 LBFGSController
+\end_layout
+
+\begin_layout Standard
+The LBFGS algorithm avoids the need to store an estimated inverse Hessian
+ explicitly, instead computing its action from a stored set of 
+\begin_inset Formula $\mathbf{s}_{k}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{y}_{k}$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Section
@@ -1611,7 +1689,7 @@ until
 \begin_inset Formula $\left|c\right|<\text{ctol}$
 \end_inset
 
-, at which point the parameters is in the feasible set.
+, at which point the parameters are in the feasible set.
  
 \end_layout
 
@@ -1662,6 +1740,164 @@ noprefix "false"
 kkt
 \family default
  method.
+\end_layout
+
+\begin_layout Subsection
+ConstrainedLBFGSController
+\end_layout
+
+\begin_layout Standard
+Replaces the constrained Newton system 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:constrainednewton"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ with 
+\begin_inset Formula 
+\begin{equation}
+\left(\begin{array}{c}
+\Delta\mathbf{x}\\
+\Delta\lambda
+\end{array}\right)=-\left(\begin{array}{cc}
+\mathcal{H} & \mathbf{C}\\
+\mathbf{C}^{T} & 0
+\end{array}\right)^{-1}\left(\begin{array}{c}
+\mathbf{g}\\
+\mathbf{c}
+\end{array}\right),\label{eq:constrainedBFGS1}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $\mathcal{H}$
+\end_inset
+
+ is an estimate of the Hessian.
+ The inverse of the estimated KKT matrix is constructed using the Schur
+ complement, 
+\begin_inset Formula 
+\begin{equation}
+\mathbf{S}=-\mathbf{C}^{T}\mathcal{H}^{-1}\mathbf{C},\label{eq:SchurComplement}
+\end{equation}
+
+\end_inset
+
+and performing block matrix inversion to obtain,
+\begin_inset Formula 
+\[
+\left(\begin{array}{cc}
+\mathcal{H} & \mathbf{C}\\
+\mathbf{C}^{T} & 0
+\end{array}\right)^{-1}=\left(\begin{array}{cc}
+\mathcal{H}^{-1}+\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\mathbf{C}^{T}\mathcal{H}^{-1} & -\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\\
+-\mathbf{S}^{-1}\mathbf{C}^{T}\mathcal{H}^{-1} & \mathbf{S}^{-1}
+\end{array}\right)
+\]
+
+\end_inset
+
+Inserting this into 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:constrainedBFGS1"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, we obtain an explicit formula for the update,
+\begin_inset Formula 
+\begin{align}
+\left(\begin{array}{c}
+\Delta\mathbf{x}\\
+\Delta\lambda
+\end{array}\right) & =-\left(\begin{array}{cc}
+\mathcal{H}^{-1}+\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\mathcal{H}^{-1} & -\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\\
+-\mathbf{S}^{-1}\mathbf{C}^{T}\mathcal{H}^{-1} & \mathbf{S}^{-1}
+\end{array}\right)\left(\begin{array}{c}
+\mathbf{g}\\
+\mathbf{c}
+\end{array}\right)\nonumber \\
+ & =-\left(\begin{array}{c}
+\mathcal{H}^{-1}\mathbf{g}+\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\mathbf{C}^{T}\mathcal{H}^{-1}\mathbf{g}-\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\mathbf{c}\\
+-\mathbf{S}^{-1}\mathbf{C}^{T}\mathcal{H}^{-1}\mathbf{g}+\mathbf{S}^{-1}\mathbf{c}
+\end{array}\right).\label{eq:CLBFGSupdate}
+\end{align}
+
+\end_inset
+
+Inspecting 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:SchurComplement"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:CLBFGSupdate"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, it is only necessary to compute the action of 
+\begin_inset Formula $\mathcal{H}^{-1}$
+\end_inset
+
+ on 
+\begin_inset Formula $\mathbf{C}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{g}$
+\end_inset
+
+; we can do so by maintaining an LBFGS estimate for 
+\begin_inset Formula $\mathcal{H}^{-1}$
+\end_inset
+
+ as in the unconstrained case.
+ In practise, we use resulting update 
+\begin_inset Formula $\Delta\mathbf{x}$
+\end_inset
+
+ as the search direction 
+\begin_inset Formula $\mathbf{d}_{k}$
+\end_inset
+
+ for a line search.
+\end_layout
+
+\begin_layout Standard
+Note that it is also necessary to solve a linear system to obtain the quantities
+ 
+\begin_inset Formula $\mathbf{S}^{-1}\mathbf{c}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{S}^{-1}(C^{T}\mathcal{H}^{-1}\mathbf{g})$
+\end_inset
+
+; this is inexpensive if the number of constraints is small relative to
+ the total number of degrees of freedom in the problem.
+ Updates to the lagrange multipliers 
+\begin_inset Formula $\Delta\lambda$
+\end_inset
+
+ need not be computed since they are not explicitly required in the algorithm.
 \end_layout
 
 \end_body

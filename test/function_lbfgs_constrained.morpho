@@ -16,7 +16,7 @@ fn h(x, y, z, u) {
 
 var start = Matrix([0,0,0,0])
 
-var adapt = FunctionAdapter(f, start=start, constraints = [g])
+var adapt = FunctionAdapter(f, start=start, constraints = [g,h])
 
 class ConstrainedLBFGSController is LBFGSController {
   start() {
@@ -37,8 +37,9 @@ class ConstrainedLBFGSController is LBFGSController {
     for (k in n-1..0:-1) { // Start with most recent
       var z = self._storage[k]
       var sk = z[0], yk = z[1], rho = 1/z[2]
-      alpha[k] = rho*sk.inner(q)
-      q-=alpha[k]*yk
+
+      alpha[k] = rho * sk.transpose()*q //sk.inner(q)
+      q-=yk*alpha[k]
     } 
 
     var zl = self._storage[-1] // Last 
@@ -46,7 +47,8 @@ class ConstrainedLBFGSController is LBFGSController {
 
     for (z, k in self._storage) { // Work forwards
       var sk = z[0], yk = z[1], rho = 1/z[2]
-      var beta = rho*yk.inner(r)
+
+      var beta = rho * yk.transpose()*r// rho*yk.inner(r)
       r+=sk*(alpha[k]-beta)
     }
 
@@ -69,16 +71,20 @@ class ConstrainedLBFGSController is LBFGSController {
 
     // Evaluate the action of Inv(A) on the rhs of Newton
     var hinvg = self._hmul(g)
-    var sainvg = aT*hinvg/S 
-    var sinvc = c/S 
+    //var sainvg = aT*hinvg/S 
+    //var sinvc = c/S 
 
-    self._direction = hinvg + hinva * (sainvg - sinvc)
+    var ss = (aT*hinvg-c)/S
+
+    self._direction = hinvg + hinva * ss//(sainvg - sinvc)
     //self._dlambda = -sainvg + sinvc 
   }
 }
 
-var control = ConstrainedLBFGSController(adapt)
+var projector = ConstraintReprojectionController(adapt)
+projector.optimize(10)
 
+var control = ConstrainedLBFGSController(adapt)
 control.optimize(50)
 
 print "Solution:"
