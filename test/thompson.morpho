@@ -9,16 +9,16 @@ var Np = 12 // Number of particles
 
 var pts = [ [  0.701285, -0.707584,  0.0867426 ],
             [  0.170413, -0.273859, -0.946552  ],
-            [ -0.740671, -0.363225, -0.56522   ]
-          /*  [ -0.618297, -0.760337,  0.198988  ],
+            [ -0.740671, -0.363225, -0.56522   ],
+            [ -0.618297, -0.760337,  0.198988  ],
             [ -0.519574, -0.784991,  0.337392  ],
             [  0.443006,  0.260568, -0.857817  ],
-            [  0.180624, -0.730670, -0.658404  ],
-            [  0.637356,  0.550955,  0.538726  ],
+            [  0.180624, -0.730670, -0.658404  ]
+           /* [  0.637356,  0.550955,  0.538726  ],
             [  0.630639, -0.233666,  0.740064  ],
             [  0.415517, -0.366144, -0.832637  ],
             [  0.851606, 0.0574065, -0.521029  ],
-            [ -0.534275,    0.6147,  0.580253  ] */]
+            [ -0.534275,    0.6147,  0.580253  ]*/ ]
 
 var build = MeshBuilder()
 for (pt in pts) {
@@ -34,6 +34,9 @@ var problem = OptimizationProblem(mesh)
 var lv = PairwisePotential(fn (r) 1/r, fn (r) -1/r^2)
 problem.addenergy(lv)
 
+var lback = ScalarPotential(fn (x,y,z) x^2+y^2+z^2)
+problem.addenergy(lback)
+
 var lsph = ScalarPotential(fn (x,y,z) x^2+y^2+z^2-1)
 problem.addlocalconstraint(lsph)
 
@@ -42,6 +45,11 @@ var proxy = ProxyAdapter(adapt)
 
 class CLBFGSPController is ConstrainedLBFGSController {
   /*step() {
+    self.stepsize=1
+    self.adapter.set(self.adapter.get()+self._direction)
+  }*/
+
+  step() {
     var merit = PenaltyAdapter(self.adapter, penalty=10)
     var ls = LineSearchController(merit)
     ls.start() 
@@ -49,9 +57,8 @@ class CLBFGSPController is ConstrainedLBFGSController {
     ls.searchdirection() 
     ls._direction = self._direction 
     ls.step() 
-    ls.report(0) 
     self.stepsize = ls.stepsize 
-  }*/
+  }
 }
 
 //var merit = PenaltyAdapter(proxy, penalty=100)
@@ -59,7 +66,7 @@ class CLBFGSPController is ConstrainedLBFGSController {
 //control.optimize(100)
 
 var control2 = CLBFGSPController(proxy)
-control2.optimize(100)
+control2.optimize(1000)
 
 var g = Graphics()
 for (i in 0...mesh.count()) {
