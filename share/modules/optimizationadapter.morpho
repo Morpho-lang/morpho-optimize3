@@ -563,7 +563,11 @@ class PenaltyAdapter is OptimizationAdapter {
     var g = self.adapter.constraintvalue()   
     var dg = self.adapter.constraintgradient()   
 
-    for (dgk, k in dg) grad += 2*self.penalty*g[k]*dgk
+    if (islist(dg)) {
+      for (dgk, k in dg) grad += 2*self.penalty*g[k]*dgk
+    } else if (ismatrix(dg)) { // TODO: MUST FIX
+      grad += 2*self.penalty*dg*g
+    }
 
     return grad
   }
