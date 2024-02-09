@@ -1,0 +1,93 @@
+// Thompson problem demonstrating local equality constraints
+
+import meshtools 
+import optimize3
+import functionals
+import plot 
+
+var Np = 12 // Number of particles
+
+var pts = [ [  0.701285, -0.707584,  0.0867426 ],
+            [  0.170413, -0.273859, -0.946552  ],
+            [ -0.740671, -0.363225, -0.56522   ],
+            [ -0.618297, -0.760337,  0.198988  ],
+            [ -0.519574, -0.784991,  0.337392  ],
+            [  0.443006,  0.260568, -0.857817  ]
+            /*[  0.180624, -0.730670, -0.658404  ],
+            [  0.637356,  0.550955,  0.538726  ],
+            [  0.630639, -0.233666,  0.740064  ],
+            [  0.415517, -0.366144, -0.832637  ],
+            [  0.851606, 0.0574065, -0.521029  ],
+            [ -0.534275,    0.6147,  0.580253  ]*/ ]
+
+var build = MeshBuilder()
+for (pt in pts) {
+  var x = Matrix(pt)
+  x/=x.norm() // Project onto unit sphere
+  build.addvertex(x)
+}
+var mesh = build.build() // Tell the MeshBuilder to build the mesh 
+
+// Specify the problem
+var problem = OptimizationProblem(mesh)
+
+var lv = PairwisePotential(fn (r) 1/r, fn (r) -1/r^2)
+problem.addenergy(lv)
+
+var lback = ScalarPotential(fn (x,y,z) x^2+y^2+z^2)
+problem.addenergy(lback)
+
+var lsph = ScalarPotential(fn (x,y,z) x^2+y^2+z^2-1)
+problem.addlocalconstraint(lsph)
+
+var adapt = MeshAdapter(problem, mesh) 
+var proxy = ProxyAdapter(adapt)
+
+class ConstrainedBFGSController is BFGSController {
+  start() {
+    super.start() 
+    self.lambda = Matrix(self.adapter.countconstraints())
+  }
+
+  kkt() {
+    var cg = self.adapter.constraintgradient() 
+    return Matrix([[self.B, cg], [cg.transpose(), 0]])
+  }
+
+  rhs() {
+    var cg = self.adapter.constraintgradient() 
+    var g = self._gradient + cg*self.lambda 
+    var c = self.adapter.constraintvalue() 
+
+    return -Matrix([[g], [c]])
+  }
+
+  searchdirection() {
+    super.gradient()
+
+    var A = self.kkt()
+    var b = self.rhs()
+
+    var sol = b/A
+
+    var n = self.adapter.get().count() 
+    var nc = self.adapter.countconstraints()
+    self._direction = sol[0...n]
+    self._directionlambda = sol[n...n+nc]
+  }
+
+  step() {
+    self.stepsize = 1
+    self.adapter.set(self.adapter.get() + self._direction)
+    self.lambda+=self._directionlambda
+  }
+}
+
+var control = ConstrainedBFGSController(proxy)
+control.optimize(1000)
+
+var g = Graphics()
+for (i in 0...mesh.count()) {
+  g.display(Sphere(mesh.vertexposition(i),1/sqrt(Np)))
+}
+Show(g) 
