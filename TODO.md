@@ -4,15 +4,14 @@
 
 * Refactor so that Newton and Quasinewton methods can use arbitrary linesearch controllers [perhaps a common base class for this?]
 
-* BarrierAdapter
+* Inequality constraints
+    * BarrierAdapter
 
 * FIREController
 
-* Inequality constraints
-
 * Local constraints
 
-* Matrices in constraint
+* Matrices in constraint?
 
 * May be a memory issue in number.format() with c=0.375 in Wolfe linesearch
 
@@ -22,3 +21,5 @@
     quiet  =    Y              X             X
     normal =    Y              Y             X
     verbose =   Y              Y             Y
+
+* Refactoring to better improve API

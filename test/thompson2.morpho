@@ -12,9 +12,9 @@ var pts = [ [  0.701285, -0.707584,  0.0867426 ],
             [ -0.740671, -0.363225, -0.56522   ],
             [ -0.618297, -0.760337,  0.198988  ],
             [ -0.519574, -0.784991,  0.337392  ],
-            [  0.443006,  0.260568, -0.857817  ]
-            /*[  0.180624, -0.730670, -0.658404  ],
-            [  0.637356,  0.550955,  0.538726  ],
+            [  0.443006,  0.260568, -0.857817  ],
+            [  0.180624, -0.730670, -0.658404  ]
+          /*  [  0.637356,  0.550955,  0.538726  ],
             [  0.630639, -0.233666,  0.740064  ],
             [  0.415517, -0.366144, -0.832637  ],
             [  0.851606, 0.0574065, -0.521029  ],
@@ -42,6 +42,40 @@ problem.addlocalconstraint(lsph)
 
 var adapt = MeshAdapter(problem, mesh) 
 var proxy = ProxyAdapter(adapt)
+
+/*class ResidualAdapter is OptimizationAdapter {
+  init(adapter) {
+    self.adapt = adapter
+    self.nconstraints = adapter.countconstraints()
+    self.lambda = Matrix(self.nconstraints)
+  }
+
+  set(x) { // Get parameters, stripping off lagrange multipliers
+    var n = x.count()
+    var nvars = n - self.nconstraints
+    self.adapt.set(x[0...nvars,0])
+    self.lambda = x[nvars...n,0] // Store lagrange multipliers on this adapter
+  }
+
+  get() { // Get parameters, joining real parameters with lagrange multipliers
+    var x = self.adapt.get()
+    return Matrix([[x], [self.lambda]]) 
+  }
+
+  value() { // Residual 
+    var f = self.adapt.gradient()   // r = grad f + C*lambda
+    var cg = self.adapt.constraintgradient()
+    var r = f + cg*self.lambda   
+
+    var c = self.adapt.constraintvalue() // c
+
+    return sqrt(r.inner(r)+c.inner(c)) // norm([r, c])
+  }
+
+  gradient() { // Gradient of residual -> Ends up being a he
+
+  }
+}*/
 
 class ConstrainedBFGSController is BFGSController {
   start() {
@@ -78,13 +112,27 @@ class ConstrainedBFGSController is BFGSController {
 
   step() {
     self.stepsize = 1
-    self.adapter.set(self.adapter.get() + self._direction)
-    self.lambda+=self._directionlambda
+
+   /* var merit = PenaltyAdapter(self.adapter, penalty=10+max(self.lambda.inner(self.lambda)))
+    var ls = LineSearchController(merit)
+    ls.start() 
+    ls.value()
+    ls.searchdirection()            
+    ls._direction = self._direction 
+    ls.step() 
+    self.stepsize = ls.stepsize */
+
+    self.adapter.set(self.adapter.get() + self.stepsize*self._direction)
+    self.lambda+=self.stepsize*self._directionlambda
   }
 }
 
+/*var merit = PenaltyAdapter(proxy, penalty=100)
+var control = LBFGSController(merit)
+control.optimize(10)*/
+
 var control = ConstrainedBFGSController(proxy)
-control.optimize(1000)
+control.optimize(100)
 
 var g = Graphics()
 for (i in 0...mesh.count()) {
