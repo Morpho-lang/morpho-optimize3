@@ -1767,7 +1767,7 @@ noprefix "false"
 \mathcal{H} & \mathbf{C}\\
 \mathbf{C}^{T} & 0
 \end{array}\right)^{-1}\left(\begin{array}{c}
-\mathbf{g}+\mathbf{C}\lambda^{T}\\
+\mathbf{g}\\
 \mathbf{c}
 \end{array}\right),\label{eq:constrainedBFGS1}
 \end{equation}
