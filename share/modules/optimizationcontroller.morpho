@@ -386,11 +386,16 @@ class NewtonController is OptimizationController {
     self.lscontroller.step() 
   }
 
-  step() { 
+  direction() {
     var g = self.gradient() 
     var H = self.hessian()
     if (!H) _OptNoHess.throw("NewtonController can't use ${self.adapter.clss()} because it doesn't provide a hessian.") 
-    self.linesearch(-g/H)
+    return -g/H
+  }
+
+  step() { 
+    var d = self.direction()
+    self.linesearch(d)
   }
 
   reportstepsize() { return "stepsize=${self.lscontroller.stepsize}" }
@@ -430,3 +435,31 @@ class BFGSController is NewtonController {
   }
 }
 
+/* -----------------------------------------
+ * InvBFGSController
+ * 
+ * BFGS but estimating the inverse hessian
+ * ----------------------------------------- */ 
+
+class InvBFGSController is BFGSController {
+  start() {
+    super.start() 
+    self.I = IdentityMatrix(self.get().count())
+  }
+
+  direction() {
+    var g = self.gradient()
+    return -self.B*g 
+  }
+
+  next() {
+    var sk = self.get() - self._ox
+    var yk = self.gradient() - self._ogradient
+
+    var v = yk.inner(sk)
+    if (v==0) { self.B=self.I; return }
+    var U = self.I - yk*sk.transpose()/v
+
+    self.B = U.transpose()*self.B*U + sk*sk.transpose()/v
+  }
+}
