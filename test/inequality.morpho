@@ -1,0 +1,72 @@
+
+import optimize3
+
+fn f(x, y) {
+  return x + y + x*y + x^2
+}
+
+fn c(x, y) {
+  return x^2 + y^2 - 1
+}
+
+fn d(x, y) {
+  return 2 - x^2 - y^2 // > 0
+}
+
+var adapt = FunctionAdapter(f, start=Matrix([0.2,0.1]), constraints=[c], inequalitycount=0)
+
+print adapt.countconstraints()
+// expect: (0, 1)
+
+print adapt.constraintvalue()
+// expect: [ 1.5 ]
+
+for (grad in adapt.constraintgradient()) {
+    print grad 
+}
+// expect: [ 1 ]
+// expect: [ 0.5 ]
+
+class Controller {
+  init(adapt) {
+    self.adapter=adapt 
+    self.lambda = Matrix(self.constraintvalue().count())
+  }
+
+  constraintvalue() {
+    var a = self.adapter.constraintvalue()
+    return Matrix([a])
+  }
+
+  constraintgradient() {
+    var g = self.adapter.constraintgradient()
+    return Matrix([g])
+  }
+
+  kkt() {
+    var H = self.adapter.hessian()
+
+    var hc = self.adapter.constrainthessian()
+    for (h, k in hc) H+=self.lambda[k]*h
+
+    var c = self.constraintgradient()
+
+    return Matrix([[H, c], [c.transpose(), 0]])
+  }
+
+  rhs() {
+    var g = self.adapter.gradient() + self.constraintgradient()*self.lambda
+    var c = self.constraintvalue()
+
+    return Matrix([[g],[c]])
+  }
+}
+
+var con = Controller(adapt)
+
+con.lambda[0]=1
+
+var kkt = con.kkt()
+var rhs = con.rhs()
+var dx = -rhs/kkt  
+print dx 

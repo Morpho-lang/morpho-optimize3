@@ -2,7 +2,7 @@
  * OptimizationProblem 
  * ************************************************************ */ 
 
-/* OptimizationProblems are containers that describe the problem using
+/* OptimizationProblems are containers that describe the problem in terms of
    functionals, global constraints and local constraints. */
 
 /* --------------------------

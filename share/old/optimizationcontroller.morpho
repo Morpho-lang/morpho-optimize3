@@ -1,0 +1,561 @@
+/* ************************************************************
+ * OptimizationController
+ * ************************************************************ */ 
+
+var _eps = 1e-16
+
+/* --------------------------
+ * Errors
+ * -------------------------- */ 
+
+var _OptInf = Error("OptInf", "Optimizer encountered an infinite or non-numerical value.")
+var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
+var _OptLnSrchStpsz = Error("OptLnSrchStpsz", "Linesearch stepsize has tended to zero.")
+var _OptMaxErr = Error("OptMaxIter", "Maximum iterations exceeded: present solution does not meet convergence criteria.")
+var _OptMaxCons = Error("OptMaxCons", "Maximum number of reprojection iterations exceeded: present solution does not meet constraint tolerance.") 
+var _OptNoGrad = Error("OptNoGrad", "Method requires a gradient.")
+var _OptNoHess = Error("OptNoHess", "Method requires a hessian.")
+
+/* --------------------------
+ * OptimizationController 
+ * -------------------------- */ 
+
+/* OptimizationController is a base class that implements an 
+   optimization algorithm or a subcomponent that works by invoking
+   the interface of an OptimizationAdapter. */
+
+class OptimizationController {
+  init(adapter, quiet=false) { 
+    self.adapter = adapter
+    self.quiet = quiet
+    self.gradtol = 1e-6 // Halting criterion based on norm of the gradient
+    self.etol = 1e-8 // Halting criterion based on change in value of objective function
+    self.ctol = 1e-10 // Constraint tolerance
+    self.maxconsiterations = 100 // Maximum number of iterations to satisfy constraints
+
+    self._value = 0    // Current value 
+    self._valuehistory=[] // History of objective function values
+    self._gradient = nil // Current gradient 
+    self._direction = nil // Current gradient 
+  } 
+
+  value() { // Calculate the value of the objective function
+    var v = self.adapter.value()
+    if (isinf(v) || isnan(v)) _OptInf.throw() 
+    self._value = v
+    return v
+  }
+
+  gradient() { // Calculate the gradient of the objective function
+    self._gradient = self.adapter.gradient()
+  }
+
+  hasconverged() { // Check convergence
+    // Convergence in value  |delta e|/|e| < etol or |delta e| < etol if e is < etol
+    if (self._valuehistory && self._valuehistory.count()>1) {
+      var f1=self._valuehistory[-1], f2=self._valuehistory[-2]
+
+      // Compute relative change in value, or use absolute value if close to zero
+      var de = abs(f1-f2)
+      if (abs(f1)>self.etol) de/=(abs(f1))
+      if (de < self.etol) return true 
+    }
+
+    // Convergence in |gradient|
+    if (self._gradient) return (self._gradient.norm()<self.gradtol)
+    
+    return false 
+  }
+
+  start() { }           // Initialization at the beginning of an optimization
+  searchdirection() { } // Compute search direction
+  step() { }            // Perform optimization step 
+  post() { }            // Override to perform any postprocessing of the step
+  record() {            // Record information about the iteration
+    self._valuehistory.append(self._value)
+  }
+  next() { }            // Update any data structures about the optimization
+
+  optimize(nsteps) {    // Optimization loop
+    self.start() 
+    for (i in 1..nsteps) {
+      self.value()            
+      self.searchdirection() 
+      self.record()
+      self.report(i-1) 
+      if (self.hasconverged()) return 
+
+      self.step() 
+      self.post()  
+      self.next()
+    }
+
+    _OptMaxErr.warning()
+  }
+
+  report(iter) { // Report on current state of the optimizer 
+    if (self.quiet) return 
+
+    var constraintreport = ""
+    if (self.adapter.countconstraints()>0) {
+      var cval = Matrix(self.adapter.constraintvalue())
+      if (cval) constraintreport=", |cons| = ${cval.norm()}"
+    }
+
+    var out =  "Iteration ${iter}: ${self._value}, |grad| = ${self._gradient.norm()}${constraintreport}" 
+    if (self.has("stepsize")) out += ", stepsize=${self.stepsize}"
+      
+    print out 
+  }
+}
+
+/* -----------------------------------------
+ * GradientDescentController
+ * 
+ * Simple gradient descent at fixed stepsize 
+ * ----------------------------------------- */ 
+
+class GradientDescentController is OptimizationController {
+  init(adapter, quiet=false, stepsize=0.1) { 
+    super.init(adapter, quiet=quiet)
+    self.stepsize=stepsize
+    self._direction=nil 
+  }
+
+  searchdirection() { // Determine the search direction
+    self.gradient() 
+    self._direction = -self._gradient
+  }
+
+  step() { // Take a step in the current search direction
+    var x = self.adapter.get() 
+    x+=self.stepsize*self._direction
+    self.adapter.set(x)
+  }
+}
+
+/* ************************************************************
+ * Line search methods
+ * ************************************************************ */ 
+
+/* -----------------------------------------
+ * LineSearchController
+ * 
+ * Gradient descent with linesearches
+ * ----------------------------------------- */ 
+
+class LineSearchController is GradientDescentController {
+  init(adapter, quiet=false, stepsize=0.1, alpha=0.2, beta=0.5) {
+    super.init(adapter, quiet=quiet)
+    self.maxsteps = 50 // Maximum steps for reducing stepsize
+    self.alpha = alpha // } Coefficients 
+    self.beta = beta   // }
+  }
+
+  expecteddescent() { // Predict expected descent
+    self.df = self._gradient.inner(self._direction)
+
+    if (self.df>0) _OptLnSrchDrn.warning()
+  }
+
+  accept(t) { // Have we descended sufficiently?
+    return self._value < self._ovalue + self.alpha*t*self.df
+  }
+
+  stepwith(x0, t) { // Take a step of size t from x0 in the descent direction
+    var x = x0 + t*self._direction
+    self.adapter.set(x)
+
+    return self.value()
+  }
+
+  step() {// Perform a single linesearch
+    self.expecteddescent()
+    var t=1
+    var success=false
+    self._ovalue = self._value // Save value for comparison
+
+    var x0 = self.adapter.get() 
+    for (nsteps in 1..self.maxsteps) {
+        self.stepwith(x0, t)
+        success=self.accept(t)
+        if (success) break
+        t*=self.beta
+    }
+    if (!success) _OptLnSrchStpsz.warning()
+
+    self.stepsize=t
+  }
+}
+
+/* ************************************************************
+ * Newton and quasi-Newton methods
+ * ************************************************************ */ 
+
+/* -----------------------------------------
+ * Newton's method
+ * ----------------------------------------- */ 
+
+class NewtonController is LineSearchController {
+  searchdirection() {
+    super.searchdirection()
+    
+    var H = self.adapter.hessian() 
+    if (!H) _OptNoHess.throw("NewtonController can't use ${self.adapter.clss()} because it doesn't provide a hessian.") 
+
+    self._direction = self._direction/H // direction was already -grad from superclass
+  }
+}
+
+/* -----------------------------------------
+ * ConjugateGradientController
+ * 
+ * Conjugate gradient with linesearch
+ * ----------------------------------------- */ 
+
+class ConjugateGradientController is LineSearchController {
+  start() {
+    self._odirection = nil 
+    self._ogradient = nil
+  }
+
+  searchdirection() {
+    super.searchdirection()
+
+    if (!self._odirection) return 
+    var beta = self._gradient.inner(self._gradient) / self._ogradient.inner(self._ogradient) 
+    if (beta<0) return 
+
+    self._direction = -self._gradient + beta*self._odirection
+  }
+
+  post() {
+    self._ogradient = self._gradient 
+    self._odirection = self._direction 
+  }
+}
+
+/* -----------------------------------------
+ * BFGSController
+ * 
+ * BFGS with dense matrices
+ * ----------------------------------------- */ 
+
+class BFGSController is LineSearchController {
+  searchdirection() { // Determine the search direction
+    super.searchdirection()
+    self._direction = -self._gradient/self.B
+  }
+
+  hessian() { // Return out estimate of the hessian
+    return self.B
+  }
+
+  start() {
+    self.B = IdentityMatrix(self.adapter.get().count())
+  }
+
+  post() {
+    var sk = self.stepsize * self._direction
+    var yk = self.adapter.gradient() - self._gradient
+
+    var u = self.B*sk 
+    var yksk = yk.inner(sk)
+    var sku = sk.inner(u)
+    if (yksk==0 || sku==0) { self.start(); return }
+
+    self.B += yk*yk.transpose()/yksk - u*u.transpose()/sku
+  }
+}
+
+/* -----------------------------------------
+ * InvBFGSController
+ * 
+ * BFGS estimating the inverse hessian
+ * ----------------------------------------- */ 
+
+class InvBFGSController is LineSearchController {
+  searchdirection() { // Determine the search direction
+    super.searchdirection()
+    self._direction = -(self.B*self._gradient)
+  }
+
+  start() {
+    self.I = IdentityMatrix(self.adapter.get().count())
+    self.B = IdentityMatrix(self.adapter.get().count())
+  }
+
+  post() {
+    var sk = self.stepsize * self._direction
+    var yk = self.adapter.gradient() - self._gradient
+
+    var v = yk.inner(sk)
+    if (v==0) { self.B=self.I; return }
+    var U = self.I - yk*sk.transpose()/v
+
+    self.B = U.transpose()*self.B*U + sk*sk.transpose()/v
+  }
+}
+
+/* -----------------------------------------
+ * LBFGSController
+ * 
+ * Limited memory variant of BFGS
+ * ----------------------------------------- */ 
+
+class LBFGSController is LineSearchController {
+  init(adapter, quiet=false, maxhistorylength=10) {
+    super.init(adapter, quiet=quiet)
+    self.maxhistorylength = maxhistorylength
+  }
+
+  _popfirst(lst) { // Pops the first element of a list
+    var a = lst.roll(-1)
+    a.pop() 
+    return a 
+  }
+
+  _hmul(p) { // Compute the action of our approximation to the inv H on a vector or matrix 
+    var q = p
+
+    var n = self._storage.count() 
+    if (n==0) return q
+    
+    var alpha[n]
+
+    // Project off all components of p that lie in the history directions
+    for (k in n-1..0:-1) { // Start with most recent
+      var z = self._storage[k]
+      var sk = z[0], yk = z[1], rho = 1/z[2]
+
+      alpha[k] = rho * sk.transpose()*q //sk.inner(q)
+      q-=yk*alpha[k]
+    } 
+
+    var zl = self._storage[-1] // Last 
+    var r = (zl[2]/zl[3])*q // (sk.yk)/(yk.yk)
+
+    for (z, k in self._storage) { // Work forwards
+      var sk = z[0], yk = z[1], rho = 1/z[2]
+
+      var beta = rho * yk.transpose()*r// rho*yk.inner(r)
+      r+=sk*(alpha[k]-beta)
+    }
+
+    return r 
+  }
+
+  start() {
+    self._storage = []
+  }
+
+  searchdirection() {
+    super.searchdirection()
+
+    self._direction = -self._hmul(self._gradient)
+  }
+
+  post() { // Update our estimate of the inverse Hessian
+    var sk = self.stepsize * self._direction
+    var yk = self.adapter.gradient() - self._gradient
+
+    self._storage.append((sk, yk, sk.inner(yk), yk.inner(yk)))
+
+    if (self._storage.count()>self.maxhistorylength) self._storage = self._popfirst(self._storage)
+  }
+}
+
+/* ************************************************************
+ * Constrained Optimization
+ * ************************************************************ */ 
+
+/* -----------------------------------------
+ * ConstraintReprojectionController
+ * 
+ * Reprojects an infeasible solution onto 
+ * the feasible set 
+ * ----------------------------------------- */ 
+
+class ConstraintReprojectionController is OptimizationController {
+  value() { 
+    self._cvalue = Matrix(self.adapter.constraintvalue())
+    self._value = self._cvalue.norm() 
+  }
+
+  searchdirection() { }
+
+  hasconverged() {
+    return self._value < self.ctol 
+  }
+
+  step() {
+    var x = self.adapter.get()
+
+    var cgrad = self.adapter.constraintgradient()
+    var n = cgrad.count()
+
+    var M = Matrix(n,n)
+    for (i in 0...n) for (j in i...n) M[i,j]=cgrad[i].inner(cgrad[j])
+
+    var scale=self._cvalue/M
+
+    for (i in 0...n) x -= scale[i]*cgrad[i]
+
+    self.adapter.set(x) 
+  }
+
+  report(iter) { 
+    print "Iteration ${iter}: |Cons| = ${self._value}"
+  }
+}
+
+/* -----------------------------------------
+ * ConstrainedNewtonController
+ * 
+ * Constrained version of Newton
+ * ----------------------------------------- */ 
+
+class ConstrainedNewtonController is OptimizationController {
+  _joincolumnvectors(c) {
+    return Matrix([c])
+  }
+
+  kkt() {
+    var H = self.adapter.hessian() 
+    var cg = self.adapter.constraintgradient() 
+
+    var a = self._joincolumnvectors(cg)
+    return Matrix([[H, a], [a.transpose(), 0]])
+  }
+
+  rhs() {
+    var g = self._gradient 
+    var c = self.adapter.constraintvalue() 
+
+    return -Matrix([[g], [c]])
+  }
+
+  searchdirection() {
+    super.gradient()
+
+    var A = self.kkt()
+    var b = self.rhs()
+    var sol = b/A
+
+    var n = self.adapter.get().count() 
+    self._update = sol[0...n]
+  }
+
+  step() { 
+    self.adapter.set(self.adapter.get() + self._update)
+  }
+}
+
+/* -----------------------------------------
+ * ConstrainedLBFGSController
+ * 
+ * Constrained version of LBFGS
+ * ----------------------------------------- */ 
+
+class ConstrainedLBFGSController is LBFGSController {
+  searchdirection() {
+    super.gradient()
+
+    var cg = self.adapter.constraintgradient() 
+    var a = cg 
+    if (islist(a)) a = Matrix([cg])
+
+    var hinva = self._hmul(a)
+    var aT = a.transpose()
+    var S = - aT*hinva // Schur complement
+
+    // Evaluate rhs of the Newton problem
+    var g = -self._gradient
+    var c = -self.adapter.constraintvalue() 
+
+    // Evaluate the action of Inv(A) on the rhs of Newton
+    var hinvg = self._hmul(g)
+
+    var ss = (aT*hinvg-c)/S
+
+    self._direction = hinvg + hinva * ss
+  }
+}
+
+/* -----------------------------------------
+ * Projection methods
+ * ----------------------------------------- */ 
+
+class ConstraintPreProjection {
+  subtractconstraints() {
+    var cgrad = self.adapter.constraintgradient()
+
+    for (g in cgrad) {
+      var dg = self._direction.inner(g)
+      var gg = g.inner(g)
+
+      self._direction -= (dg/gg)*g 
+    }
+  }
+}
+
+class ConstraintPostprojection {
+  reproject() {
+    var x = self.adapter.get()
+
+    var dv = Matrix(1)
+
+    for (_ in 1..self.maxconsiterations) {
+      dv = Matrix(self.adapter.constraintvalue())
+
+      if (dv.norm()<self.ctol) return 
+
+      var cgrad = self.adapter.constraintgradient()
+      var n = cgrad.count()
+
+      var M = Matrix(n,n)
+      for (i in 0...n) for (j in i...n) M[i,j]=cgrad[i].inner(cgrad[j])
+
+      var scale=dv/M
+
+      for (i in 0...n) x -= scale[i]*cgrad[i]
+      
+      self.adapter.set(x)
+    }
+
+    _OptMaxCons.warning("Maximum number of constraint steps exceeded without achieving the constraint tolerance of ${self.ctol} (residual is ${dv.norm()}). Try setting 'maxconstraintsteps' to more than ${self.maxconstraintsteps}, or increase constraint tolerance.")
+  }
+}
+
+class ProjectedGradientDescentController is GradientDescentController 
+      with ConstraintPreProjection, ConstraintPostprojection {
+  searchdirection() {
+    super.searchdirection()
+    self.subtractconstraints()
+  }
+
+  post() { self.reproject() }
+}
+
+class ProjectedLineSearchController is LineSearchController 
+      with ConstraintPreProjection, ConstraintPostprojection {
+  searchdirection() {
+    super.searchdirection()
+    self.subtractconstraints()
+  }
+
+  post() { self.reproject() }
+}
+
+class ProjectedConjugateGradientController is ConjugateGradientController
+      with ConstraintPreProjection, ConstraintPostprojection {
+  searchdirection() {
+    super.searchdirection()
+    self.subtractconstraints()
+  }
+
+  post() {
+    self.reproject()
+    super.post()  
+  }
+}
