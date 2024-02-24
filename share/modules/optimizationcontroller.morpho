@@ -105,6 +105,9 @@ class OptimizationController is DelegateAdapter {
       if (de < tol) return true 
     } 
 
+    var g = self.gradient()
+    if (g && g.norm()<self.gradtol) return true 
+
     return false 
   }
 
