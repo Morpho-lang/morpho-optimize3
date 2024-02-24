@@ -216,7 +216,7 @@ class LineSearchController is GradientDescentController {
 
     self.df = g.inner(d)
 
-    if (self.df>0) _OptLnSrchDrn.warning()
+    if (self.df>0) self.warning(_OptLnSrchDrn)
   }
 
   accept(t) { // Have we descended sufficiently?
@@ -241,7 +241,7 @@ class LineSearchController is GradientDescentController {
         if (success) break
         t*=self.beta
     }
-    if (!success) _OptLnSrchStpsz.warning()
+    if (!success) self.warning(_OptLnSrchStpsz)
 
     self.stepsize=t
   }
@@ -306,7 +306,7 @@ class WolfeLineSearchController is LineSearchController {
       }
     }
  
-    _OptLnSrchZm.warning() 
+    self.warning(_OptLnSrchZm)
   }
 
   step() { // Perform a single linesearch; Alg. 3.5 of N&D
@@ -377,8 +377,8 @@ class WolfeLineSearchController is LineSearchController {
 class NewtonController is OptimizationController {
   init(adapter, quiet=false, verbosity=nil, linesearch=nil) {
     super.init(adapter, quiet=quiet, verbosity=verbosity)
-    if (linesearch) self.lscontroller = linesearch(self.adapter)
-    else self.lscontroller = LineSearchController(self.adapter)
+    if (linesearch) self.lscontroller = linesearch(self.adapter, verbosity=self.verbosity)
+    else self.lscontroller = LineSearchController(self.adapter, verbosity=self.verbosity)
   }
 
   linesearch(dirn) {
