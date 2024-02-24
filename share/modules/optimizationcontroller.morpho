@@ -117,7 +117,7 @@ class OptimizationController is DelegateAdapter {
 
     var f = self.value() 
 
-    print "Iteration ${iter.format("%2i")}: ${f.format("%12g")} ${self.reportoptcond()}" 
+    print "Iteration ${iter.format("%2i")}: ${f} ${self.reportoptcond()}" 
   }
 
   /* Optimization sequence */
@@ -184,7 +184,7 @@ class GradientDescentController is OptimizationController {
 /* -----------------------------------------
  * LineSearchController
  * 
- * Gradient descent with linesearches
+ * Armijo linesearches
  * ----------------------------------------- */ 
 
 class LineSearchController is GradientDescentController {
