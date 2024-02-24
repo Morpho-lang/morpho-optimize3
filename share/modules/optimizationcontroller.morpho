@@ -10,6 +10,9 @@ var _OptInf = Error("OptInf", "Optimizer encountered an infinite or non-numerica
 var _OptMaxErr = Error("OptMaxIter", "Maximum iterations exceeded: present solution does not meet convergence criteria.")
 var _OptUnknwnVrbsty = Error("OptUnknwnVrbsty", "Unknown verbosity setting: use 'silent', 'quiet', 'normal', or 'verbose'.")
 
+var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
+var _OptLnSrchStpsz = Error("OptLnSrchStpsz", "Linesearch stepsize has tended to zero.")
+
 /* --------------------------
  * Reporting levels 
  * -------------------------- */ 
@@ -33,17 +36,25 @@ var _OptVerbosity = { "silent" : _OptSilent,
    the interface of an OptimizationAdapter. */ 
 
 class OptimizationController {
-  init(adapter, verbosity=nil) { 
+  init(adapter, quiet=false, verbosity=nil) { 
     self.adapter = adapter 
     // Fit a ProxyAdapter over the regular adapter if not present to avoid repeated calculations
     if (adapter.clss()!=ProxyAdapter) self.adapter = ProxyAdapter(adapter)
     
     // Control verbosity 
     self.verbosity = _OptNormal
+    if (quiet) self.verbosity = _OptQuiet
     if (verbosity) {
       if (_OptVerbosity.contains(verbosity)) self.verbosity = _OptVerbosity[verbosity]
+      else if (isint(verbosity)) self.verbosity = verbosity
       else _OptUnknwnVrbsty.throw() 
     }
+
+    // Tolerances
+    self.gradtol = 1e-6 // Convergence criterion based on norm of the gradient
+    self.etol = 1e-8 // Convergence criterion based on change in value of objective function
+    self.ctol = 1e-10 // Constraint tolerance
+    self.maxconsiterations = 100 // Maximum number of iterations to satisfy constraints
 
     self._valuehistory=[] // History of objective function values 
   } 
@@ -66,7 +77,7 @@ class OptimizationController {
     return Matrix([g])
   }
 
-  /* Check verbosity */
+  /* Verbosity */
 
   checkverbosity(level) { // Checks if output should be printed at a given level
     return (self.verbosity>=level)
@@ -76,25 +87,145 @@ class OptimizationController {
     if (self.checkverbosity(_OptQuiet)) error.warning() 
   }
 
+  /* Convergence check */
+
+  hasconverged() {
+    // Convergence in value  |delta e|/|e| < etol or |delta e| < etol if e is < etol
+    if (self._valuehistory && self._valuehistory.count()>1) {
+      var f1=self._valuehistory[-1], f2=self._valuehistory[-2]
+
+      // Compute relative change in value, or use absolute value if close to zero
+      var de = abs(f1-f2), ee=(abs(f1)+abs(f2))/2, tol = self.etol 
+      if (abs(f1)>tol) tol*=ee 
+      if (de < tol) return true 
+    } 
+
+    return false 
+  }
+
+  /* Reporting */
+
+  reportoptcond() { // Report value of optimality condition
+    var g = self.adapter.gradient()
+    if (!g) return ""
+    return "grad=|${g.norm()}|"
+  }
+
+  report(iter) { // Reporting
+    if (!self.checkverbosity(_OptNormal)) return 
+
+    var f = self.adapter.value() 
+
+    print "Iteration ${iter}: ${f} ${self.reportoptcond()}" 
+  }
+
   /* Optimization sequence */
 
   start() { }           // Initialization at the beginning of an optimization
+  begin() { }           // Calculate initial information for the iteration
+  step() { }            // Perform optimization step 
+  next() { }            // Calculate updated information
+
   record() {            // Record information about the iteration
     self._valuehistory.append(self.value())
   }
 
-  iterate() {
-    self.record()
-    self.report() 
+  iterate() {  // Optimization iteration
+    self.begin()  
+    self.step()
+    self.next()
   }
 
   optimize(nsteps) { // Optimization loop
-    self.start() 
+    self.start()
+    self.record() 
     for (i in 1..nsteps) {
       if (self.hasconverged()) return 
       self.iterate() 
+      self.report(i)
+      self.record()
     }
 
     self.warning(_OptMaxErr)
+  }
+}
+
+/* -----------------------------------------
+ * GradientDescentController
+ * 
+ * Simple gradient descent at fixed stepsize 
+ * ----------------------------------------- */ 
+
+class GradientDescentController is OptimizationController {
+  init(adapter, quiet=false, verbosity=nil, stepsize=0.1) { 
+    super.init(adapter, quiet=quiet, verbosity=verbosity)
+    self.stepsize=stepsize
+    self._direction=nil 
+  }
+
+  // Define a descent direction
+  setdirection(d) { self._direction = d }
+  direction() { return self._direction}
+
+  searchdirection() { // Determine the search direction
+    self.setdirection(-self.adapter.gradient())
+  }
+
+  begin() { self.searchdirection() }
+
+  step() { // Take a step in the current search direction
+    var x = self.adapter.get() 
+    x+=self.stepsize*self.direction()
+    self.adapter.set(x)
+  }
+}
+
+/* -----------------------------------------
+ * LineSearchController
+ * 
+ * Gradient descent with linesearches
+ * ----------------------------------------- */ 
+
+class LineSearchController is GradientDescentController {
+  init(adapter, quiet=false, verbosity=nil, stepsize=0.1, alpha=0.2, beta=0.5) {
+    super.init(adapter, quiet=quiet, verbosity=verbosity, stepsize=stepsize)
+    self.maxsteps = 50 // Maximum steps for reducing stepsize
+    self.alpha = alpha // } Coefficients 
+    self.beta = beta   // }
+  }
+
+  expecteddescent() { // Predict expected descent
+    self.df = self._gradient.inner(self._direction)
+
+    if (self.df>0) _OptLnSrchDrn.warning()
+  }
+
+  accept(t) { // Have we descended sufficiently?
+    return self._value < self._ovalue + self.alpha*t*self.df
+  }
+
+  stepwith(x0, t) { // Take a step of size t from x0 in the descent direction
+    var x = x0 + t*self._direction
+    self.adapter.set(x)
+
+    return self.value()
+  }
+
+  step() {// Perform a single linesearch
+    self.expecteddescent()
+    var t=1
+    var success=false
+    self._ovalue = self._value // Save value for comparison
+
+    var x0 = self.adapter.get() 
+    for (nsteps in 1..self.maxsteps) {
+        self.stepwith(x0, t)
+        success=self.accept(t)
+        if (success) break
+        t*=self.beta
+    }
+    if (!success) _OptLnSrchStpsz.warning()
+
+    self.stepsize=t
   }
 }
