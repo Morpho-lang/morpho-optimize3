@@ -63,43 +63,23 @@ class ProxyAdapter is OptimizationAdapter {
   }
   get() { return self.adapter.get() }
 
-  value() { 
-    if (self._value) return self._value 
-    self.count[0]+=1
-    return self.adapter.value() 
+  compute(prop, func, counter) {
+    if (!self[prop]) { 
+      self.setindex(prop, func())
+      self.count[counter]+=1
+    }
+    return self[prop]
   }
 
-  gradient() { 
-    if (self._gradient) return self._gradient 
-    self.count[1]+=1
-    return self.adapter.gradient()
-  }
-
-  hessian() { 
-    if (self._hessian) return self._hessian 
-    self.count[2]+=1
-    return self.adapter._hessian() 
-  }
+  value()    { return self.compute("_value", self.adapter.value, 0) }
+  gradient() { return self.compute("_gradient", self.adapter.gradient, 1) }
+  hessian() { return self.compute("_hessian", self.adapter.hessian, 2) }
 
   countconstraints() { return self.adapter.countconstraints() } 
 
-  constraintvalue() { 
-    if (self._constraintvalue) return self._constraintvalue
-    self.count[3]+=1
-    return self.adapter.constraintvalue() 
-  }
-
-  constraintgradient() { 
-    if (self._constraintgradient) return self._constraintgradient
-    self.count[4]+=1
-    return self.adapter.constraintgradient() 
-  }
-
-  constrainthessian() {
-    if (self._constrainthessian) return self._constrainthessian
-    self.count[5]+=1
-    return self.adapter.constrainthessian() 
-  } 
+  constraintvalue() { return self.compute("_constraintvalue", self.adapter.constraintvalue, 3) }
+  constraintgradient() { return self.compute("_constraintgradient", self.adapter.constraintgradient, 4) }
+  constrainthessian() { return self.compute("_constrainthessian", self.adapter.constrainthessian, 4) }
 
   countevals() {
     return self.count 

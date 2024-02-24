@@ -14,6 +14,9 @@ var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward dire
 var _OptLnSrchStpsz = Error("OptLnSrchStpsz", "Linesearch stepsize has tended to zero.")
 var _OptLnSrchZm = Error("OptLnSrchZm", "Maximum iterations exceeded in linesearch interval identification.")
 
+var _OptNoGrad = Error("OptNoGrad", "Method requires a gradient.")
+var _OptNoHess = Error("OptNoHess", "Method requires a hessian.")
+
 /* --------------------------
  * Reporting levels 
  * -------------------------- */ 
@@ -153,6 +156,10 @@ class OptimizationController is DelegateAdapter {
     self.warning(_OptMaxErr)
   }
 }
+
+/* ************************************************************
+ * Line search methods
+ * ************************************************************ */ 
 
 /* -----------------------------------------
  * GradientDescentController
@@ -351,5 +358,25 @@ class WolfeLineSearchController is LineSearchController {
     var d2 = sign(x1-x0)*sqrt(s)
 
     return x1-(x1-x0)*(df1+d2-d1)/(df1-df0-2*d2) // Should check if outside interval
+  }
+}
+
+/* ************************************************************
+ * Newton and quasi-Newton methods
+ * ************************************************************ */ 
+
+/* -----------------------------------------
+ * Newton's method
+ * ----------------------------------------- */ 
+
+class NewtonController is LineSearchController {
+  searchdirection() {
+    super.searchdirection()
+
+    var H = self.hessian() 
+    if (!H) _OptNoHess.throw("NewtonController can't use ${self.adapter.clss()} because it doesn't provide a hessian.") 
+
+    var d = self.direction()/H // direction was already -grad from superclass
+    self.setdirection(d)
   }
 }
