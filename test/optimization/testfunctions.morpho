@@ -49,9 +49,9 @@ var tests = [ [ "Sphere(2)",     sphere,       2,   0,      [1,   1] ],
 var algorithms = [ [ "linesearch",  LineSearchController         ],
                   // [ "conj. grad.", ConjugateGradientController  ],
                    [ "newton",      NewtonController             ],
-                   [ "bfgs",        BFGSController               ]
-                  // [ "bfgsinv",     InvBFGSController            ],
-                  // [ "lbfgs",       LBFGSController              ]
+                   [ "bfgs",        BFGSController               ],
+                   [ "bfgsinv",     InvBFGSController            ],
+                   [ "lbfgs",       LBFGSController              ]
                  ]
 
 var ntests = tests.count(), nalgs = algorithms.count()
@@ -74,7 +74,7 @@ for (t,i in tests) {
 
     var success = false 
     try {
-      control.optimize(1000)
+      control.optimize(10000)
       success = true 
     } catch {
       "DvZr" : 
