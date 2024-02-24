@@ -318,6 +318,11 @@ where
 \end_inset
 
  inequality constrained functions.
+ We adopt the sign convention that the inequality constraint functions 
+\begin_inset Formula $\mathbf{d}$
+\end_inset
+
+ are positive in the feasible region.
 \end_layout
 
 \begin_layout Standard
