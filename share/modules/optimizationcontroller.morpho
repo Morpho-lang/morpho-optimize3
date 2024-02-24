@@ -12,6 +12,7 @@ var _OptUnknwnVrbsty = Error("OptUnknwnVrbsty", "Unknown verbosity setting: use 
 
 var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
 var _OptLnSrchStpsz = Error("OptLnSrchStpsz", "Linesearch stepsize has tended to zero.")
+var _OptLnSrchZm = Error("OptLnSrchZm", "Maximum iterations exceeded in linesearch interval identification.")
 
 /* --------------------------
  * Reporting levels 
@@ -229,5 +230,123 @@ class LineSearchController is GradientDescentController {
     if (!success) _OptLnSrchStpsz.warning()
 
     self.stepsize=t
+  }
+}
+
+/* -----------------------------------------
+ * WolfeLineSearchController
+ * 
+ * Linesearches that satisfy strong Wolfe 
+ * conditions [Nocedal&Wright Chapter 3, p60]
+ * ----------------------------------------- */ 
+
+// See also SciPy implementation https://indrag49.github.io/Numerical-Optimization/line-search-descent-methods.html#selection-of-step-length
+// See also an implementation at https://github.com/gjkennedy/ae6310/blob/master/Line%20Search%20Algorithms.ipynb
+
+class WolfeLineSearchController is LineSearchController {
+  init(adapter, quiet=false, verbosity=nil, stepsize=1, steplimit=2, c1=1e-3, c2=0.9) {
+    super.init(adapter, quiet=quiet, verbosity=verbosity)
+    self.maxsteps = 50 // Maximum steps for reducing stepsize
+    self.stepsize = stepsize   // Initial stepsize
+    self.steplimit = steplimit // Stepsize limit
+    self.c1 = c1 // } Coefficients 
+    self.c2 = c2 // }
+    self.verbose = self.checkverbosity(_OptVerbose)
+  }
+
+  _interpolate(f0, df, alpha, fa) {
+    return - df*alpha^2/(2*(fa-f0-df*alpha))
+  }
+
+  _zoom(alphalo0, alphahi0, x0, f0, df) {
+    var alphalo = alphalo0, alphahi = alphahi0
+    var flo = self.stepwith(x0, alphalo)
+
+    for (_ in 1..self.maxsteps) {
+      if (self.verbose) print "  Zoom iteration ${_}: (${alphalo},${alphahi}) [${flo}, ${self.stepwith(x0, alphahi)}]"
+      var alpha = (alphalo+alphahi)/2 // Bisection
+
+      var f = self.stepwith(x0, alpha)
+
+      if (f>f0+self.c1*alpha*df || // Armijo condition
+          f >= flo) {
+            if (self.verbose) print "    Armijo test failed; reduce stepsize"
+            alphahi = alpha 
+      } else {
+        self.gradient() 
+        var dfalpha = self.gradient().inner(self.direction())
+
+        if (self.verbose) print "    Testing curvature condition: ${abs(dfalpha)} <= ${self.c2*abs(df)}"
+        if (abs(dfalpha) <= self.c2*abs(df)) { // Curvature condition
+          if (self.verbose) print "    Curvature condition succeeded alpha=${alpha.format("%.16g")}"
+          self.stepsize = alpha 
+          return 
+        } else if (dfalpha*(alphahi-alphalo)>=0) {
+          if (self.verbose) print "    Swap intervals"
+          alphahi = alphalo 
+        }
+
+        if (self.verbose) print "    Increase stepsize "
+        alphalo = alpha  
+        flo = f 
+      }
+    }
+ 
+    _OptLnSrchZm.warning() 
+  }
+
+  step() { // Perform a single linesearch; Alg. 3.5 of N&D
+    self.expecteddescent()
+
+    var f0 = self.value()
+    var df = self.df 
+    var x0 = self.get() 
+
+    var alpha=self.stepsize
+    var oalpha=0
+    var of = f0 
+
+    for (_ in 1..self.maxsteps) {
+      var f = self.stepwith(x0, alpha)
+      if (self.verbose) print "  ls iteration ${_}: alpha=${alpha} f=${f}"
+
+      if (f>f0+self.c1*alpha*df ||
+          f>=of) { // Step is too long if Armijo test fails or the function simply increased
+        if (self.verbose) print "  Armijo test failed; zooming on interval (${oalpha},${alpha})"
+        return self._zoom(oalpha, alpha, x0, f0, df) 
+      }
+
+       
+      var dfalpha = self.gradient().inner(self.direction())
+
+      if (abs(dfalpha) <= self.c2*abs(df)) { // Curvature test
+        if (self.verbose) print "  Curvature test succeeded alpha=${alpha.format("%.16g")}"
+        self.stepsize = alpha // Success
+        if (self.verbose) print self.adapter.get()
+        return 
+      }
+
+      if (dfalpha>=0) { // Gradient is upward so reduce stepsize
+        if (self.verbose) print "  Upward gradient detected; zooming on interval (${alpha},${oalpha})"
+        return self._zoom(alpha, oalpha, x0, f0, df)
+      }
+      
+      of = f 
+      oalpha = alpha 
+
+      //alpha = self._interpolate(f0, df, alpha, f)
+      alpha = min(2*alpha, self.steplimit)
+    }
+
+    if (self.verbose) print "Too many iterations in step."
+  }
+
+  _interpolate(x0,x1,f0,f1,df0,df1) { // Cubic interpolation Nocedal p59
+    var d1 = df0 + df1 - 3*(f1-f0)/(x1-x0)
+    var s = d1^2-df0*df1
+    if (s<0) return (x0+x1)/2
+    var d2 = sign(x1-x0)*sqrt(s)
+
+    return x1-(x1-x0)*(df1+d2-d1)/(df1-df0-2*d2) // Should check if outside interval
   }
 }
