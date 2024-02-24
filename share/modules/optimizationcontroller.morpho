@@ -525,7 +525,7 @@ class LBFGSController is InvBFGSController {
     var yk = self.gradient() - self._ogradient
 
     self._storage.append((sk, yk, sk.inner(yk), yk.inner(yk)))
-    
+
     if (self._storage.count()>self.maxhistorylength) self._storage = self._popfirst(self._storage)
   }
 }
