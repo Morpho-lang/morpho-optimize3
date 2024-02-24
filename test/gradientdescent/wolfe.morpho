@@ -9,7 +9,7 @@ var start = Matrix([20,3.1,0])
 
 var adapt = FunctionAdapter(func, start=start)
 
-var control = WolfeLineSearchController(adapt)
+var control = WolfeLineSearchController(adapt, verbosity="normal")
 
 control.optimize(100)
 

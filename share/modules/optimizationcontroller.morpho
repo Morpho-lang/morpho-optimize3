@@ -113,12 +113,14 @@ class OptimizationController is DelegateAdapter {
     return "grad=|${g.norm()}|"
   }
 
+  reportstepsize() { return "" }
+
   report(iter) { // Reporting
     if (!self.checkverbosity(_OptNormal)) return 
 
     var f = self.value() 
 
-    print "Iteration ${iter.format("%2i")}: ${f} ${self.reportoptcond()}" 
+    print "Iteration ${iter.format("%2i")}: ${f} ${self.reportoptcond()} ${self.reportstepsize()}" 
   }
 
   /* Optimization sequence */
@@ -180,6 +182,8 @@ class GradientDescentController is OptimizationController {
     x+=self.stepsize*self.direction()
     self.set(x)
   }
+
+  reportstepsize() { return "stepsize=${self.stepsize}" }
 }
 
 /* -----------------------------------------
@@ -315,7 +319,6 @@ class WolfeLineSearchController is LineSearchController {
         if (self.verbose) print "  Armijo test failed; zooming on interval (${oalpha},${alpha})"
         return self._zoom(oalpha, alpha, x0, f0, df) 
       }
-
        
       var dfalpha = self.gradient().inner(self.direction())
 
