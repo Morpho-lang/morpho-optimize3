@@ -1,4 +1,4 @@
-// Test conjugate gradient on a poorly scaled quadratic
+// Test BFGS on a poorly scaled quadratic
 
 import optimize3
 import "quadratic.morpho"
