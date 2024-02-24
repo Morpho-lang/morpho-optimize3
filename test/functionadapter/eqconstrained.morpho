@@ -1,0 +1,33 @@
+// Test the FunctionAdapter with equality constraints
+import optimize3
+
+fn func(x, y, z) {
+    return (x-0.5)^2 + (y-1)^2 + z^2
+}
+
+fn c(x, y, z) {
+    return x + 0.5*y - 1
+}
+
+fn d(x, y, z) {
+    return y + z - 2
+}
+
+var adapt = FunctionAdapter(func, start=Matrix([2, 1, 0]), constraints=[c, d])
+
+print adapt.countconstraints()
+// expect: (2, 0)
+
+print adapt.constraintvalue()
+// expect: [ 1.5, -1 ]
+
+for (grad in adapt.constraintgradient()) {
+    print grad 
+}
+// expect: [ 1 ]
+// expect: [ 0.5 ]
+// expect: [ 0 ]
+
+// expect: [ 0 ]
+// expect: [ 1 ]
+// expect: [ 1 ]

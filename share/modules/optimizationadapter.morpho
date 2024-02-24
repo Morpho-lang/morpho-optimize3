@@ -27,10 +27,10 @@ class OptimizationAdapter {
   gradient() { return nil }           // Returns the gradient of the objective function at the current parameters as a column vector
   hessian() { return nil }            // (Optional) Returns the hessian of the objective function at the current parameters as a matrix
 
-  countconstraints() { return 0 }     // Returns number of constraints present
-  constraintvalue() { return nil }    // Returns the value(s) of any constraints as a column vector
+  countconstraints() { return (0,0) } // Returns number of constraints present (n eq, n ineq)
+  constraintvalue() { return nil }    // Returns the value(s) of any constraints as a list of numbers and vectors
   constraintgradient() { return nil } // Returns the gradient(s) of any constraints as a list of vectors or matrices
-  constrainthessian() { return nil }  // Returns the hessian(s) of any constraints as a list of matrices
+  constrainthessian() { return nil }  // Returns the hessian(s) of any constraints as a list of matrices, or sublists
 }
 
 /* --------------------------
