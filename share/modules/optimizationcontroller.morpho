@@ -2,3 +2,99 @@
  * OptimizationController
  * ************************************************************ */ 
 
+/* --------------------------
+ * Errors
+ * -------------------------- */ 
+
+var _OptInf = Error("OptInf", "Optimizer encountered an infinite or non-numerical value.")
+var _OptMaxErr = Error("OptMaxIter", "Maximum iterations exceeded: present solution does not meet convergence criteria.")
+var _OptUnknwnVrbsty = Error("OptUnknwnVrbsty", "Unknown verbosity setting: use 'silent', 'quiet', 'normal', or 'verbose'.")
+
+/* --------------------------
+ * Reporting levels 
+ * -------------------------- */ 
+
+var _OptSilent  = 0 // Only errors
+var _OptQuiet   = 1 // Warnings and errors only
+var _OptNormal  = 2 // Normal output including 
+var _OptVerbose = 3 // Additional debugging information
+
+var _OptVerbosity = { "silent" : _OptSilent,
+                      "quiet" : _OptQuiet,
+                      "normal" : _OptNormal, 
+                      "verbose" : _OptVerbose }
+
+/* --------------------------
+ * OptimizationController 
+ * -------------------------- */ 
+
+/* OptimizationController is a base class that implements an 
+   optimization algorithm or a subcomponent that works by invoking
+   the interface of an OptimizationAdapter. */ 
+
+class OptimizationController {
+  init(adapter, verbosity=nil) { 
+    self.adapter = adapter 
+    // Fit a ProxyAdapter over the regular adapter if not present to avoid repeated calculations
+    if (adapter.clss()!=ProxyAdapter) self.adapter = ProxyAdapter(adapter)
+    
+    // Control verbosity 
+    self.verbosity = _OptNormal
+    if (verbosity) {
+      if (_OptVerbosity.contains(verbosity)) self.verbosity = _OptVerbosity[verbosity]
+      else _OptUnknwnVrbsty.throw() 
+    }
+
+    self._valuehistory=[] // History of objective function values 
+  } 
+
+  /* Convenience methods to calculate quantities */
+
+  value() { // Value of the objective function
+    var v = self.adapter.value()
+    if (isinf(v) || isnan(v)) _OptInf.throw() 
+    return v
+  }
+
+  constraintvalue() { // Value of constraint functions as a vector
+    var a = self.adapter.constraintvalue()
+    return Matrix(a)
+  }
+
+  constraintgradient() { // Gradient of constraint functions as a matrix
+    var g = self.adapter.constraintgradient()
+    return Matrix([g])
+  }
+
+  /* Check verbosity */
+
+  checkverbosity(level) { // Checks if output should be printed at a given level
+    return (self.verbosity>=level)
+  }
+
+  warning(error) { // Generate a warning 
+    if (self.checkverbosity(_OptQuiet)) error.warning() 
+  }
+
+  /* Optimization sequence */
+
+  start() { }           // Initialization at the beginning of an optimization
+  record() {            // Record information about the iteration
+    self._valuehistory.append(self.value())
+  }
+
+  iterate() {
+    self.record()
+    self.report() 
+  }
+
+  optimize(nsteps) { // Optimization loop
+    self.start() 
+    for (i in 1..nsteps) {
+      if (self.hasconverged()) return 
+      self.iterate() 
+    }
+
+    self.warning(_OptMaxErr)
+  }
+}
