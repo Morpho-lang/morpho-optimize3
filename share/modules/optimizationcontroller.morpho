@@ -372,14 +372,24 @@ class WolfeLineSearchController is LineSearchController {
  * Newton's method
  * ----------------------------------------- */ 
 
-class NewtonController is LineSearchController {
-  searchdirection() {
-    super.searchdirection()
-
-    var H = self.hessian() 
-    if (!H) _OptNoHess.throw("NewtonController can't use ${self.adapter.clss()} because it doesn't provide a hessian.") 
-
-    var d = self.direction()/H // direction was already -grad from superclass
-    self.setdirection(d)
+class NewtonController is OptimizationController {
+  init(adapter, quiet=false, verbosity=nil, linesearch=nil) {
+    super.init(adapter, quiet=quiet, verbosity=verbosity)
+    if (linesearch) self.lscontroller = linesearch(self.adapter)
+    else self.lscontroller = LineSearchController(self.adapter)
   }
+
+  linesearch(dirn) {
+    self.lscontroller.setdirection(dirn)
+    self.lscontroller.step() 
+  }
+
+  step() { 
+    var g = self.gradient() 
+    var H = self.hessian()
+    if (!H) _OptNoHess.throw("NewtonController can't use ${self.adapter.clss()} because it doesn't provide a hessian.") 
+    self.linesearch(-g/H)
+  }
+
+  reportstepsize() { return "stepsize=${self.lscontroller.stepsize}" }
 }
