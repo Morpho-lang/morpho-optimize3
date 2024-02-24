@@ -369,7 +369,9 @@ class WolfeLineSearchController is LineSearchController {
  * ************************************************************ */ 
 
 /* -----------------------------------------
- * Newton's method
+ * NewtonController
+ * 
+ * Newton's method with linesearches
  * ----------------------------------------- */ 
 
 class NewtonController is OptimizationController {
@@ -393,3 +395,38 @@ class NewtonController is OptimizationController {
 
   reportstepsize() { return "stepsize=${self.lscontroller.stepsize}" }
 }
+
+/* -----------------------------------------
+ * BFGSController
+ * 
+ * BFGS with dense matrices
+ * ----------------------------------------- */ 
+
+class BFGSController is NewtonController {
+  hessian() { // Return our estimate of the hessian
+    return self.B
+  }
+
+  start() {
+    self.B = IdentityMatrix(self.get().count())
+  }
+
+  begin() {
+    super.begin() 
+    self._ox = self.get() 
+    self._ogradient = self.gradient() 
+  }
+
+  next() {
+    var sk = self.get() - self._ox
+    var yk = self.gradient() - self._ogradient
+
+    var u = self.B*sk 
+    var yksk = yk.inner(sk)
+    var sku = sk.inner(u)
+    if (yksk==0 || sku==0) { self.start(); return }
+
+    self.B += yk*yk.transpose()/yksk - u*u.transpose()/sku
+  }
+}
+
