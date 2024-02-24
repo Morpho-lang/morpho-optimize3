@@ -120,6 +120,32 @@ class ProxyAdapter is OptimizationAdapter {
   }
 }
 
+/* --------------------------
+ * DelegateAdapter class
+ * -------------------------- */ 
+
+/** A delegate adapter fully implements the adapter protocol, but instead passes
+    method calls on to a second adapter. Useful as a base class for adapters 
+    that are intended to work with other adapters */
+
+class DelegateAdapter is OptimizationAdapter {
+  init(adapter) {
+    self.adapter = adapter
+  }
+
+  set(x) { self.adapter.set(x) }
+  get() { return self.adapter.get() }
+
+  value() { return self.adapter.value() }
+  gradient() { return self.adapter.gradient() }
+  hessian() { return self.adapter.hessian() }
+
+  countconstraints() { return self.adapter.countconstraints() }
+  constraintvalue() { return self.adapter.constraintvalue() }
+  constraintgradient() { return self.adapter.constraintgradient() }
+  constrainthessian() { return self.adapter.constrainthessian() } 
+}
+
 /* -------------------------
  * FunctionAdapter 
  * ------------------------- */

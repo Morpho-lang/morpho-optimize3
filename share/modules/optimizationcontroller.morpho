@@ -35,9 +35,10 @@ var _OptVerbosity = { "silent" : _OptSilent,
    optimization algorithm or a subcomponent that works by invoking
    the interface of an OptimizationAdapter. */ 
 
-class OptimizationController {
+class OptimizationController is DelegateAdapter {
   init(adapter, quiet=false, verbosity=nil) { 
-    self.adapter = adapter 
+    super.init(adapter)
+    
     // Fit a ProxyAdapter over the regular adapter if not present to avoid repeated calculations
     if (adapter.clss()!=ProxyAdapter) self.adapter = ProxyAdapter(adapter)
     
@@ -68,12 +69,12 @@ class OptimizationController {
   }
 
   constraintvalue() { // Value of constraint functions as a vector
-    var a = self.adapter.constraintvalue()
+    var a = super.constraintvalue()
     return Matrix(a)
   }
 
   constraintgradient() { // Gradient of constraint functions as a matrix
-    var g = self.adapter.constraintgradient()
+    var g = super.constraintgradient()
     return Matrix([g])
   }
 
@@ -106,7 +107,7 @@ class OptimizationController {
   /* Reporting */
 
   reportoptcond() { // Report value of optimality condition
-    var g = self.adapter.gradient()
+    var g = self.gradient()
     if (!g) return ""
     return "grad=|${g.norm()}|"
   }
@@ -114,9 +115,9 @@ class OptimizationController {
   report(iter) { // Reporting
     if (!self.checkverbosity(_OptNormal)) return 
 
-    var f = self.adapter.value() 
+    var f = self.value() 
 
-    print "Iteration ${iter}: ${f} ${self.reportoptcond()}" 
+    print "Iteration ${iter.format("%2i")}: ${f.format("%12g")} ${self.reportoptcond()}" 
   }
 
   /* Optimization sequence */
@@ -168,15 +169,15 @@ class GradientDescentController is OptimizationController {
   direction() { return self._direction}
 
   searchdirection() { // Determine the search direction
-    self.setdirection(-self.adapter.gradient())
+    self.setdirection(-self.gradient())
   }
 
   begin() { self.searchdirection() }
 
   step() { // Take a step in the current search direction
-    var x = self.adapter.get() 
+    var x = self.get() 
     x+=self.stepsize*self.direction()
-    self.adapter.set(x)
+    self.set(x)
   }
 }
 
@@ -195,19 +196,20 @@ class LineSearchController is GradientDescentController {
   }
 
   expecteddescent() { // Predict expected descent
-    self.df = self._gradient.inner(self._direction)
+    var d = self.direction()
+    var g = self.gradient() 
+
+    self.df = g.inner(d)
 
     if (self.df>0) _OptLnSrchDrn.warning()
   }
 
   accept(t) { // Have we descended sufficiently?
-    return self._value < self._ovalue + self.alpha*t*self.df
+    return self.value() < self._ovalue + self.alpha*t*self.df
   }
 
   stepwith(x0, t) { // Take a step of size t from x0 in the descent direction
-    var x = x0 + t*self._direction
-    self.adapter.set(x)
-
+    self.set(x0 + t*self.direction())
     return self.value()
   }
 
@@ -215,9 +217,9 @@ class LineSearchController is GradientDescentController {
     self.expecteddescent()
     var t=1
     var success=false
-    self._ovalue = self._value // Save value for comparison
+    self._ovalue = self.value() // Save value for comparison
 
-    var x0 = self.adapter.get() 
+    var x0 = self.get() 
     for (nsteps in 1..self.maxsteps) {
         self.stepwith(x0, t)
         success=self.accept(t)

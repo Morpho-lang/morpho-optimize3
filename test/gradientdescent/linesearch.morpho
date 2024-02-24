@@ -9,7 +9,7 @@ var start = Matrix([20,3.1,0])
 
 var adapt = FunctionAdapter(func, start=start)
 
-var control = LineSearchController(adapt, verbosity="quiet")
+var control = LineSearchController(adapt)
 
 control.optimize(100)
 
