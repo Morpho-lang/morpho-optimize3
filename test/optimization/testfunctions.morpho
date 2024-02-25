@@ -47,7 +47,7 @@ var tests = [ [ "Sphere(2)",     sphere,       2,   0,      [1,   1] ],
 
 // Algorithms 
 var algorithms = [ [ "linesearch",  LineSearchController         ],
-                  // [ "conj. grad.", ConjugateGradientController  ],
+                   [ "conj. grad.", ConjugateGradientController  ],
                    [ "newton",      NewtonController             ],
                    [ "bfgs",        BFGSController               ],
                    [ "bfgsinv",     InvBFGSController            ],

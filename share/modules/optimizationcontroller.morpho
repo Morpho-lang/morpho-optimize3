@@ -116,7 +116,7 @@ class OptimizationController is DelegateAdapter {
   reportoptcond() { // Report value of optimality condition
     var g = self.gradient()
     if (!g) return ""
-    return "grad=|${g.norm()}|"
+    return "|grad|=${g.norm()}"
   }
 
   reportstepsize() { return "" }
