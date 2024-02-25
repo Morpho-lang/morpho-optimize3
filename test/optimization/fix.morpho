@@ -1,5 +1,4 @@
-// Suite of test functions
-// See: https://en.wikipedia.org/wiki/Test_functions_for_optimization
+// Try to understand what's going wrong for test functions
 
 import meshtools 
 import optimize3
@@ -51,3 +50,5 @@ var adapt = FunctionAdapter(beale, start=Matrix(2))
 var control = NewtonController(adapt, linesearch=LineSearchController)
 
 control.optimize(400)
+
+print adapt.get() 
