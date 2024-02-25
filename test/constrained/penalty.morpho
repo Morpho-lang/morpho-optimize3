@@ -22,11 +22,10 @@ var padapt = PenaltyAdapter(adapt)
 
 print padapt.value() 
 print padapt.gradient() 
-
-//print padapt.hessian().format("%5.4f")
+print padapt.hessian().format("%5.4f")
 
 for (iter in 1..10) {
-  var control = BFGSController(padapt)
+  var control = NewtonController(padapt)
   control.optimize(100) 
 
   print "Iteration ${iter} mu=${padapt.penalty()}"

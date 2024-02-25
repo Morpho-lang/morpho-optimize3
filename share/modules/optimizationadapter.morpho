@@ -354,7 +354,7 @@ class PenaltyAdapter is OptimizationAdapter {
       var hessg = self.adapter.constrainthessian() 
 
       for (vk, k in v) {
-        if (abs(vk)==0) continue 
+        if (abs(vk)==0) continue
         if (!hessg[k]) _OptNoHessErr.throw() 
 
         hess+=2*self.penalty*(vk*hessg[k] + dg[k].outer(dg[k]))
