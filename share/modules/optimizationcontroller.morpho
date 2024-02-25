@@ -561,3 +561,50 @@ class LBFGSController is InvBFGSController {
     if (self._storage.count()>self.maxhistorylength) self._storage = self._popfirst(self._storage)
   }
 }
+
+/* ************************************************************
+ * Controllers for constrained optimization
+ * ************************************************************ */ 
+
+class PenaltyController is OptimizationController {
+  init(adapter, quiet=false, verbosity=nil, controller=nil, mu0=1, mumul=10.0) {
+    super.init(adapter, quiet=quiet, verbosity=verbosity)
+
+    self.mumul = mumul // Factor to multiply penalty by at each iteration
+
+    self.adapter = PenaltyAdapter(self.adapter)
+    self.adapter.setpenalty(mu0)
+  }
+
+  begin() {
+    self.mu=self.adapter.penalty()
+    self.control = LBFGSController(self.adapter, verbosity=self.verbosity)
+  }
+
+  start() {
+    self.control = nil 
+  }
+
+  step() {
+    self.control.optimize(100) 
+  }
+
+  next() {
+    self.adapter.setpenalty(self.mumul*self.adapter.penalty())
+  }
+
+  constraintnorm() {
+    return self.adapter.constraintvector().norm(1)
+  }
+
+  hasconverged() {
+    if (!self.control) return false 
+    return self.control.hasconverged() && (self.constraintnorm()<self.ctol)
+  }
+
+  report(iter) {
+    if (!self.checkverbosity(_OptNormal)) return 
+    
+    print "==Penalty iteration ${iter}: mu=${self.mu} |constraints|=${self.constraintnorm()}"
+  }
+}
