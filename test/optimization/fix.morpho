@@ -48,6 +48,6 @@ var tests = [ [ "Sphere(2)",     sphere,       2,   0,      [1,   1] ],
 
 var adapt = FunctionAdapter(beale, start=Matrix(2))
 
-var control = LineSearchController(adapt)
+var control = NewtonController(adapt, linesearch=LineSearchController)
 
 control.optimize(400)
