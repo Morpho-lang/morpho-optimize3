@@ -1,0 +1,41 @@
+// Test PenaltyAdapter
+
+import optimize3
+
+fn func(x, y, z) {
+  return (x+2)^2 + 0.5*(y-2)^2 + 2*(z-2)^2
+}
+
+fn g(x, y, z) {
+  return x + y - 1
+}
+
+fn h(x, y, z) {
+  return 1 - (x^2 + y^2 + z^2)
+}
+
+var start = Matrix([0,0,0])
+
+var adapt = FunctionAdapter(func, start=start, constraints = [g, h], inequalitycount=1)
+
+var padapt = PenaltyAdapter(adapt)
+
+print padapt.value() 
+print padapt.gradient() 
+
+//print padapt.hessian().format("%5.4f")
+
+for (iter in 1..10) {
+  var control = BFGSController(padapt)
+  control.optimize(100) 
+
+  print "Iteration ${iter} mu=${padapt.penalty()}"
+  var x = padapt.get() 
+  print x 
+
+  print apply(func, x[0], x[1], x[2])
+  print apply(g, x[0], x[1], x[2])
+  print apply(h, x[0], x[1], x[2])
+
+  padapt.setpenalty(10.0*padapt.penalty())
+}
