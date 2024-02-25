@@ -402,6 +402,38 @@ class NewtonController is OptimizationController {
 }
 
 /* -----------------------------------------
+ * ConjugateGradientController
+ * 
+ * Conjugate gradient with linesearch
+ * ----------------------------------------- */ 
+
+class ConjugateGradientController is NewtonController {
+  start() {
+    self._odirection = nil 
+    self._ogradient = nil
+  }
+
+  direction() {
+    var g = self.gradient() 
+    self._gradient = g 
+    self._direction = -g
+
+    if (self._ogradient) {
+      var beta = g.inner(g) / self._ogradient.inner(self._ogradient) 
+      if (beta<0) return self._direction
+      self._direction += beta*self._odirection
+    }
+     
+    return self._direction
+  }
+
+  next() {
+    self._ogradient = self._gradient 
+    self._odirection = self._direction 
+  }
+}
+
+/* -----------------------------------------
  * BFGSController
  * 
  * BFGS with dense matrices
