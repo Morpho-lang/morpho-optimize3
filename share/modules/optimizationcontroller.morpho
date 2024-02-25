@@ -100,9 +100,9 @@ class OptimizationController is DelegateAdapter {
       var f1=self._valuehistory[-1], f2=self._valuehistory[-2]
 
       // Compute relative change in value, or use absolute value if close to zero
-      var de = abs(f1-f2), ee=(abs(f1)+abs(f2))/2, tol = self.etol 
-      if (abs(f1)>tol) tol*=ee 
-      if (de < tol) return true 
+      var de = abs(f1-f2)
+      if (abs(f1)>self.etol) de/=(abs(f1))
+      if (de < self.etol) return true 
     } 
 
     var g = self.gradient()
