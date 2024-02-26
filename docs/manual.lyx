@@ -385,7 +385,7 @@ as well as the
  matrix of the gradients of constraints, 
 \begin_inset Formula 
 \[
-\mathbf{C}=C_{ij}=\frac{\partial c_{j}}{\partial x_{i}}
+\mathbf{C}=C_{ij}=\frac{\partial c_{j}}{\partial x_{i}},\ \mathbf{D}=D_{ij}=\frac{\partial d_{j}}{\partial x_{i}}
 \]
 
 \end_inset
