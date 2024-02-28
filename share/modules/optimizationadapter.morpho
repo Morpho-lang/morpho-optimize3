@@ -12,6 +12,22 @@ var _OptConsCountErr = Error("OptConsCount", "More inequality constraints specif
 var _OptUnConsErr = Error("OpUncons", "Problem appears to be unconstrained.")
 
 /* --------------------------
+ * Utility functions
+ * -------------------------- */ 
+
+fn _columnize(matrix) { // Reshape a rectangular matrix into a column matrix 
+  var dim = matrix.dimensions() 
+
+  matrix.reshape(dim[0]*dim[1],1)
+  return nil 
+}
+
+fn _decolumnize(matrix, dim) { // Reshape a matrix from a column matrix to a rectangular matrix
+  matrix.reshape(dim[0], dim[1])
+  return nil 
+}
+
+/* --------------------------
  * OptimizationAdapter class
  * -------------------------- */ 
 
@@ -285,6 +301,188 @@ class FunctionAdapter is OptimizationAdapter {
   }
 }
 
+/* -------------------------
+ * ProblemAdapter 
+ * ------------------------- */
+
+class ProblemAdapter is OptimizationAdapter {
+  init(problem, target) {
+    super.init(target)
+    self.problem = problem 
+    if (!islist(self.problem.energies) || self.problem.energies.count()==0) _OptNoActiveFuncErr.throw()
+  }
+
+  energies() { return self.problem.energies }       // Obtain energies and constraints from the problem 
+  constraints() { return self.problem.constraints }
+  localconstraints() { return self.problem.localconstraints }
+
+  includefunctional(func) { return true } // Does a functional depend on the target? 
+  includeconstraint(cons) { return true } // Does a constraint refer to the target? 
+
+  valueForFunctional(func) { // Calculates the value of a given Functional object 
+    var val
+    if (func.selection) {
+      val=func.functional.total(self.target, func.selection)
+    } else {
+      val=func.functional.total(self.target)
+    }
+    if (func.prefactor) val*=func.prefactor
+    return val
+  }
+
+  integrandForFunctional(func) { // Calculates the value of a given Functional object 
+    var val
+    if (func.selection) {
+      val=func.functional.integrand(self.target, func.selection)
+    } else {
+      val=func.functional.integrand(self.target)
+    }
+    if (func.prefactor) val*=func.prefactor
+    return val
+  }
+
+  gradientForFunctional(func) { return nil } // Calculates the gradient of a given Functional object wrt the target 
+
+  value() { 
+    var energy = 0
+    for (en in self.energies()) {
+      if (!self.includefunctional(en)) continue 
+      energy+=self.valueForFunctional(en)
+    }
+    return energy
+  }
+
+  gradient() {
+    var grad 
+    for (en in self.energies()) {
+      if (!self.includefunctional(en)) continue 
+      grad+=self.gradientForFunctional(en)
+    }
+    _columnize(grad)
+    return grad
+  }
+
+  _combineconstraintvalues(cval) {
+    var lst = []
+    for (el in cval) {
+      if (ismatrix(el)) for (e in el) lst.append(e)
+      else if (isnumber(el)) lst.append(el)
+    }
+
+    return lst
+  }
+
+  constraintvalue() {
+    var cval = []
+    for (cons in self.constraints()) {
+      if (!self.includeconstraint(cons)) continue 
+
+      var val = self.valueForFunctional(cons)
+      if (cons.has("target")) val-=cons.target
+
+      cval.append(val)
+    }
+
+    for (cons in self.localconstraints()) { // TODO: Handle selections correctly
+      if (!self.includeconstraint(cons)) continue 
+
+      var val = self.integrandForFunctional(cons).transpose() 
+      if (cons.has("target")) val-=cons.target
+
+      cval.append(val)
+    }
+
+    return self._combineconstraintvalues(cval)
+  }
+
+  localconstraintgradient(cons) { return nil }
+
+  constraintgradient() {
+    var cgrad = []
+    for (cons in self.constraints()) {
+      if (!self.includeconstraint(cons)) continue 
+      var grad=self.gradientForFunctional(cons)
+      _columnize(grad)
+      cgrad.append(grad)      
+    }
+
+    for (cons in self.localconstraints()) { // TODO: Handle selections correctly
+      if (!self.includeconstraint(cons)) continue 
+      var grad = self.localconstraintgradient(cons) 
+      cgrad.append(grad)
+    }
+
+    return cgrad // Condense matrices
+  }
+
+  countconstraints() { 
+    var neq = 0, nineq = 0 
+    for (cons in self.constraints()) {
+      if (self.includeconstraint(cons)) neq+=1
+    }
+    for (cons in self.localconstraints()) {
+      if (self.includeconstraint(cons)) nineq+=self.target.count() 
+    }
+    return (neq, nineq)
+  }
+}
+
+/* -------------------------
+ * MeshAdapter 
+ * ------------------------- */
+
+class MeshAdapter is ProblemAdapter {
+  set(x) { // x is a column matrix 
+    var mat = self.target.vertexmatrix()
+    var dim = mat.dimensions() 
+    _columnize(mat)
+    mat.assign(x)
+    _decolumnize(mat, dim)
+    return nil  
+  }
+
+  get() { // grabs the mesh 
+    var mat = self.target.vertexmatrix().clone()
+    _columnize(mat)
+    return mat 
+  }
+
+  getMatrix() { // grabs the mesh 
+    var mat = self.target.vertexmatrix().clone()
+    return mat 
+  }
+
+  getMesh(){
+    return self.target
+  }
+
+  gradientForFunctional(func) { 
+    var val
+    if (func.selection) {
+      val=func.functional.gradient(self.target, func.selection)
+    } else {
+      val=func.functional.gradient(self.target)
+    }
+    if (func.prefactor) val*=func.prefactor
+    return val
+  }
+
+  localconstraintgradient(cons) {
+    var grad = cons.functional.gradient(self.target)
+    var dim = grad.dimensions()
+    var ndof = dim[0], ncol = dim[1]
+
+    var s = Sparse(ndof*ncol,ncol)
+
+    for (i in 0...ncol) {
+        for (x, j in grad.column(i)) s[i*ndof+j,i]=x
+    }
+
+    return s 
+  }
+
+  includeconstraint(c) { return (c.field==nil) }
+}
 
 /* -------------------------
  * PenaltyAdapter
