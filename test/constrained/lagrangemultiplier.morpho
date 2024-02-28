@@ -100,4 +100,21 @@ var control = NewtonController(ladapt)
 
 control.optimize(10)
 
-print ladapt.get() 
+print ladapt.get()
+
+var start = Matrix([1,1,1])
+
+var adapt = FunctionAdapter(func, start=start, constraints = [g], inequalitycount=0)
+
+var ladapt = LagrangeMultiplierAdapter(adapt) 
+
+//var padapt = PenaltyAdapter(adapt, penalty=100)
+var lscontroller = GradientDescentController(adapt, stepsize=1)
+
+var control = BFGSController(ladapt, linesearch=lscontroller)
+
+control.optimize(20)
+
+print control.hasconverged()
+
+print ladapt.get()

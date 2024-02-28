@@ -82,6 +82,10 @@ class OptimizationController is DelegateAdapter {
     return Matrix([g])
   }
 
+  countdof() { // Count degrees of freedom
+    return self.adapter.get().count()
+  }
+
   /* Verbosity */
 
   checkverbosity(level) { // Checks if output should be printed at a given level
@@ -178,7 +182,12 @@ class GradientDescentController is OptimizationController {
   }
 
   // Define a descent direction
-  setdirection(d) { self._direction = d }
+  setdirection(d) { 
+    self._direction = d     
+    var ndof = self.countdof()
+    if (d.count()>ndof) self._direction = d[0...ndof]
+  }
+
   direction() { return self._direction}
 
   searchdirection() { // Determine the search direction
@@ -377,13 +386,16 @@ class WolfeLineSearchController is LineSearchController {
 class NewtonController is OptimizationController {
   init(adapter, quiet=false, verbosity=nil, linesearch=nil) {
     super.init(adapter, quiet=quiet, verbosity=verbosity)
-    if (linesearch) self.lscontroller = linesearch(self.adapter, verbosity=self.verbosity)
+    if (isclass(linesearch)) self.lscontroller = linesearch(self.adapter, verbosity=self.verbosity)
+    else if (isobject(linesearch)) self.lscontroller = linesearch
     else self.lscontroller = LineSearchController(self.adapter, verbosity=self.verbosity)
   }
 
   linesearch(dirn) {
+    var x0 = self.adapter.get() /// <- If our space and linesearch space don't coincide
     self.lscontroller.setdirection(dirn)
     self.lscontroller.step() 
+    self.adapter.set(x0+self.lscontroller.stepsize*dirn) /// <- If our space and linesearch space don't coincide
   }
 
   direction() {
