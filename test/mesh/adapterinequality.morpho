@@ -1,0 +1,40 @@
+// Test the MeshAdapter on a simple square loop 
+
+import meshtools 
+import optimize3
+import plot 
+
+// Build mesh 
+var m = LineMesh(fn (u) [cos(u), sin(u)], -Pi...Pi:Pi/12, closed=true) 
+
+// Set up a demo problem 
+var problem = OptimizationProblem(m)
+
+problem.addenergy(Length())
+
+problem.addconstraint(AreaEnclosed())
+
+var L = 0.5
+var lsupper = ScalarPotential(fn (x,y) L-y)
+var lslower = ScalarPotential(fn (x,y) y+L)
+problem.addlocalconstraint(lsupper)
+problem.addlocalconstraint(lslower)
+
+// Test the MeshAdapter 
+var adapt = MeshAdapter(problem, m)
+
+print m.count() 
+
+print adapt.countconstraints() 
+
+print adapt.value() // Find the value 
+// expect: 4
+
+print adapt.constraintgradient()
+
+System.exit() 
+
+var control = PenaltyController(adapt)
+control.optimize(15) 
+
+Show(plotmesh(m, grade=[0,1]))

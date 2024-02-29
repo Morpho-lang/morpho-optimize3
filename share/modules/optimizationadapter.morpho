@@ -362,16 +362,6 @@ class ProblemAdapter is OptimizationAdapter {
     return grad
   }
 
-  _combineconstraintvalues(cval) {
-    var lst = []
-    for (el in cval) {
-      if (ismatrix(el)) for (e in el) lst.append(e)
-      else if (isnumber(el)) lst.append(el)
-    }
-
-    return lst
-  }
-
   constraintvalue() {
     var cval = []
     for (cons in self.constraints()) {
@@ -392,7 +382,7 @@ class ProblemAdapter is OptimizationAdapter {
       cval.append(val)
     }
 
-    return self._combineconstraintvalues(cval)
+    return cval
   }
 
   localconstraintgradient(cons) { return nil }
@@ -421,7 +411,7 @@ class ProblemAdapter is OptimizationAdapter {
       if (self.includeconstraint(cons)) neq+=1
     }
     for (cons in self.localconstraints()) {
-      if (self.includeconstraint(cons)) nineq+=self.target.count() 
+      if (self.includeconstraint(cons)) nineq+=1
     }
     return (neq, nineq)
   }
@@ -502,20 +492,40 @@ class PenaltyAdapter is OptimizationAdapter {
   set(x) { self.adapter.set(x) }
   get() { return self.adapter.get() }
 
-  _checkineq(c) {
+  _counteq(cv) {
     var nc = self.adapter.countconstraints()
-    for (k in nc[0]...nc[0]+nc[1]) {
+    var neq = 0
+    for (c, k in cv) {
+      if (k>=nc[0]) break
+      if (ismatrix(c)) neq+=c.count()
+      else neq+=1
+    }  
+    return neq
+  }
+
+  _flatten(v) {
+    var l = []
+    for (c in v) {
+      if (ismatrix(c)) for (x in c) l.append(x)
+      else l.append(c)
+    }
+    return Matrix(l)
+  } 
+
+  _checkineq(c, neq) {
+    for (k in neq...c.count()) {
       if (c[k]>0) c[k]=0
     }
   }
 
   constraintvector() {
-    var v = self.adapter.constraintvalue()
+    var cv = self.adapter.constraintvalue()
 
-    if (v) {
-      v = Matrix(v)
-      self._checkineq(v)
-    } else _OptUnConsErr.warning() 
+    if (!cv) _OptUnConsErr.warning()
+
+    var v = self._flatten(cv)
+    var neq = self._counteq(cv)
+    self._checkineq(v, neq)
 
     return v 
   }
