@@ -64,15 +64,18 @@ class LagrangeMultiplierAdapter is OptimizationAdapter {
     return f + self.lambda.inner(c)  
   }
 
-  gradient() { // Gradient of Lagrangian is [ df + lambda_i dc_i , c_i] 
+  vargradient() { // Gradient of lagrangian wrt original degrees of freedom
     var grad = self.adapter.gradient()
-
-    var c = self.constraintvector()
     var cgrad = self.adapter.constraintgradient()
-
     for (cg,k in cgrad) grad += self.lambda[k]*cg
 
-    return Matrix([[grad],[c]]) 
+    return grad 
+  }
+
+  gradient() { // Gradient of Lagrangian is [ df + lambda_i dc_i , c_i] 
+    var c = self.constraintvector()
+
+    return Matrix([[self.vargradient()],[c]]) 
   } 
 
   hessian() { // Hessian of Lagrangian is the kkt matrix 
@@ -109,7 +112,6 @@ class SQPController is OptimizationController {
     
     self.ladapter.set(self.ladapter.get() - d)
   }
-
 }
 
 var control = SQPController(adapt)
