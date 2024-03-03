@@ -239,7 +239,7 @@ class SQPController is OptimizationController {
   }
 
   linesearch(dirn) {
-    var padapt = L1PenaltyAdapter(self.adapter, penalty=5)
+    var padapt = L1PenaltyAdapter(self.adapter, penalty=10)
 
     var ndof = self.adapter.get().count() 
     var xdirn = dirn[0...ndof]
@@ -254,7 +254,6 @@ class SQPController is OptimizationController {
 
     self.adapter.set(x0)
 
-    return 1 
     return ls.stepsize
   }
 
@@ -263,7 +262,10 @@ class SQPController is OptimizationController {
     var alpha = self.linesearch(d)
 
     self.ladapter.set(self.ladapter.get() + alpha*d)
+    self.stepsize = alpha 
   }
+
+  reportstepsize() { return "stepsize=${self.stepsize}" }
 
   next() {
     var sk = self.get() - self._ox
