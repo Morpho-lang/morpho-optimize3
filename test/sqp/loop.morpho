@@ -17,6 +17,44 @@ problem.addconstraint(la)
 var adapt = MeshAdapter(problem, m)
 
 var _OptUnConsErr = Error("OpUncons", "Problem appears to be unconstrained.")
+var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
+
+class XLineSearchController is LineSearchController {
+  setexpecteddescent(df) {
+    self.df = df
+    if (self.df>0) self.warning(_OptLnSrchDrn)
+  }
+
+  expecteddescent() { // Predict expected descent
+    return self.df
+  }
+}
+
+class L1PenaltyAdapter is DelegateAdapter {
+  init(adapter, penalty=1) {
+    self.adapter = adapter
+    self.penalty = penalty
+  }
+
+  constraintvector() {
+    var v = self.adapter.constraintvalue()
+    return Matrix(v)
+  }
+
+  value() { //  f + lambda_i c_i
+    var f = self.adapter.value() 
+    var c = self.constraintvector()
+
+    return f + self.penalty*c.norm(1)
+  }
+
+  directionalderivative(d) {
+    var df = self.adapter.gradient() 
+    var c = self.constraintvector()
+
+    return df.inner(d) - self.penalty*c.norm(1)
+  }
+}
 
 class LagrangeMultiplierAdapter is OptimizationAdapter {
   init(adapter) {
@@ -84,7 +122,6 @@ class LagrangeMultiplierAdapter is OptimizationAdapter {
     var h = self.adapter.hessian()    
 
     var chess = self.adapter.constrainthessian() 
-    if (!chess) Error("OptHess", "No hessian available").throw()
     for (ch,k in chess) h += self.lambda[k]*ch
 
     var cg = self.adapter.constraintgradient()
@@ -179,6 +216,12 @@ class SQPController is OptimizationController {
     self._ogradient = self.ladapter.vargradient() 
   }
 
+  Xsolve() {
+    var rhs = self.gradient() 
+    var kkt = self.kkt() 
+    var d = -rhs/kkt
+  }
+
   solve() {
     var g = self.ladapter.vargradient() 
     var c = self.ladapter.constraintvector()
@@ -197,15 +240,34 @@ class SQPController is OptimizationController {
                      [- SinvCt*Hg + Sinvc] ])
   }
 
-  step() {
-    /*var rhs = self.gradient() 
-    var kkt = self.kkt() 
-    var d = -rhs/kkt*/
+  linesearch(dirn) {
+    var padapt = L1PenaltyAdapter(self.adapter, penalty=100)
 
-    var d = self.solve() 
-    
-    self.ladapter.set(self.ladapter.get() + d)
+    var ndof = self.adapter.get().count() 
+    var xdirn = dirn[0...ndof]
+
+    var x0 = self.adapter.get()
+
+    var ls = XLineSearchController(padapt)
+    ls.setdirection(xdirn)
+    var df = padapt.directionalderivative(xdirn)
+    ls.setexpecteddescent(df)
+    ls.step()
+
+    self.adapter.set(x0)
+
+    return ls.stepsize
   }
+
+  step() {
+    var d = self.solve() 
+    var alpha = self.linesearch(d)
+
+    self.ladapter.set(self.ladapter.get() + alpha*d)
+    self.stepsize = alpha 
+  }
+
+  reportstepsize() { return "stepsize=${self.stepsize}" }
 
   next() {
     var sk = self.get() - self._ox
@@ -216,6 +278,8 @@ class SQPController is OptimizationController {
 }
 
 var control = SQPController(adapt)
-control.optimize(30)
+control.optimize(100)
 
 Show(plotmesh(m))
+
+print "Length=${Length().total(m)} Area = ${AreaEnclosed().total(m)}"

@@ -20,3 +20,5 @@ var control = PenaltyController(adapt)
 control.optimize(15) 
 
 Show(plotmesh(m))
+
+print "Length=${Length().total(m)} Area = ${AreaEnclosed().total(m)}"
