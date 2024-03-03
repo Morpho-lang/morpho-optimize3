@@ -1,4 +1,4 @@
-// Test Newton's method on a poorly scaled quadratic
+// Constraint reprojection 
 
 import optimize3
 

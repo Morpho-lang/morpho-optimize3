@@ -1,0 +1,61 @@
+// Constraint reprojection with inequality constraints
+
+import optimize3
+
+fn func(x, y, z) {
+  return (x+2)^2 + 0.5*(y-2)^2 + 2*(z-2)^2
+}
+
+fn g(x, y, z) {
+  return x + y - 1
+}
+
+fn h(x, y, z) {
+  return 1 - (x^2 + y^2 + z^2)
+}
+
+var start = Matrix([2,2,2])
+
+var adapt = FunctionAdapter(func, start=start, constraints = [g,h], inequalitycount=1)
+
+print "Infeasible start:"
+print adapt.get()
+
+class ActiveSetController is OptimizationController {
+
+  _checkineq(c) {
+    var nc = self.adapter.countconstraints()
+    print nc 
+    for (k in nc[0]...nc[0]+nc[1]) {
+      if (c[k]>0) c[k]=0
+    }
+  }
+
+  activevalue() {
+    var v = self.adapter.constraintvalue()
+
+    if (v) {
+      v = Matrix(v)
+      self._checkineq(v)
+    } // else _OptUnConsErr.warning() 
+
+    return v 
+  }
+
+}
+
+var active = ActiveSetController(adapt)
+
+print active.activevalue()
+
+/*
+var control = ConstraintReprojectionController(adapt)
+control.optimize(20)
+
+print "Feasible point:"
+var x = adapt.get()
+print x
+
+print g(x[0], x[1], x[2])
+
+print h(x[0], x[1], x[2])*/
