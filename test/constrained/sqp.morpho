@@ -91,6 +91,70 @@ class LagrangeMultiplierAdapter is OptimizationAdapter {
   }
 }
 
+class XLBFGSController is InvBFGSController {
+  init(adapter, quiet=false, verbosity=nil, maxhistorylength=10) {
+    super.init(adapter, quiet=quiet, verbosity=verbosity)
+    self.maxhistorylength = maxhistorylength
+  }
+
+  _popfirst(lst) { // Pops the first element of a list
+    var a = lst.roll(-1)
+    a.pop() 
+    return a 
+  }
+
+  _hmul(p) { // Compute the action of our approximation to the inv H on a vector or matrix 
+    var q = p
+
+    var n = self._storage.count() 
+    if (n==0) return q
+    
+    var alpha[n]
+
+    // Project off all components of p that lie in the history directions
+    for (k in n-1..0:-1) { // Start with most recent
+      var z = self._storage[k]
+      var sk = z[0], yk = z[1], rho = 1/z[2]
+
+      alpha[k] = rho * sk.transpose()*q //sk.inner(q)
+      q-=yk*alpha[k]
+    } 
+
+    var zl = self._storage[-1] // Last 
+    var r = (zl[2]/zl[3])*q // (sk.yk)/(yk.yk)
+
+    for (z, k in self._storage) { // Work forwards
+      var sk = z[0], yk = z[1], rho = 1/z[2]
+
+      var beta = rho * yk.transpose()*r// rho*yk.inner(r)
+      r+=sk*(alpha[k]-beta)
+    }
+
+    return r 
+  }
+
+  start() {
+    self._storage = []
+  }
+
+  direction() {
+    return -self._hmul(self.gradient())
+  }
+
+  update(sk, yk) {
+    self._storage.append((sk, yk, sk.inner(yk), yk.inner(yk)))
+
+    if (self._storage.count()>self.maxhistorylength) self._storage = self._popfirst(self._storage)
+  }
+
+  next() { // Update our estimate of the inverse Hessian
+    var sk = self.get() - self._ox
+    var yk = self.gradient() - self._ogradient
+
+    self.update(sk, yk) 
+  }
+}
+
 class SQPController is OptimizationController {
   gradient() {
     return self.ladapter.gradient()
@@ -102,17 +166,54 @@ class SQPController is OptimizationController {
 
   start() {
     self.ladapter = LagrangeMultiplierAdapter(self.adapter)
+
+    self.lbfgs = XLBFGSController(self.adapter)
+    self.lbfgs.start() 
+  }
+
+  begin() {
+    self._ox = self.get() 
+    self._ogradient = self.ladapter.vargradient() 
+  }
+
+  solve() {
+    var g = self.ladapter.vargradient() 
+    var c = self.ladapter.constraintvector()
+    var cg = self.adapter.constraintgradient()
+    var C = Matrix([cg])
+    var Ct = C.transpose()
+
+    var HC = self.lbfgs._hmul(C)
+    var Hg = self.lbfgs._hmul(g)
+
+    var S = -Ct*HC
+    var Sinvc = c/S
+    var SinvCt = Ct/S
+
+    return -Matrix([ [Hg + HC*SinvCt*Hg - HC*Sinvc],
+                     [- SinvCt*Hg + Sinvc] ])
   }
 
   step() {
     var rhs = self.gradient() 
-    var kkt = self.kkt() 
-
-    var d = rhs/kkt
     
-    self.ladapter.set(self.ladapter.get() - d)
+    /*var kkt = self.kkt() 
+    var d = -rhs/kkt*/
+
+    var d = self.solve() 
+    
+    self.ladapter.set(self.ladapter.get() + d)
+  }
+
+  next() {
+    var sk = self.get() - self._ox
+    var yk = self.ladapter.vargradient() - self._ogradient
+    
+    self.lbfgs.update(sk, yk)
   }
 }
 
 var control = SQPController(adapt)
-control.optimize(5)
+control.optimize(10)
+
+print control.get() 
