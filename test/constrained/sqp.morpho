@@ -6,7 +6,7 @@ var _OptUnConsErr = Error("OpUncons", "Problem appears to be unconstrained.")
 var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
 
 fn func(x, y, z) {
-  return (x+2)^2 + 0.5*(y-2)^2 + 2*(z-2)^2
+  return (x+2)^2 + 0.5*(y-2)^4 + 2*(z-2)^2
 }
 
 fn g(x, y, z) {
@@ -217,7 +217,7 @@ class SQPController is OptimizationController {
   Xsolve() {
     var rhs = self.gradient() 
     var kkt = self.kkt() 
-    var d = -rhs/kkt
+    return -rhs/kkt
   }
 
   solve() {
@@ -225,6 +225,7 @@ class SQPController is OptimizationController {
     var c = self.ladapter.constraintvector()
     var cg = self.adapter.constraintgradient()
     var C = Matrix([cg])
+
     var Ct = C.transpose()
 
     var HC = self.lbfgs._hmul(C)
@@ -249,6 +250,7 @@ class SQPController is OptimizationController {
     var ls = XLineSearchController(padapt)
     ls.setdirection(xdirn)
     var df = padapt.directionalderivative(xdirn)
+
     ls.setexpecteddescent(df)
     ls.step()
 
@@ -258,10 +260,12 @@ class SQPController is OptimizationController {
   }
 
   step() {
-    var d = self.solve() 
+    var x0 = self.ladapter.get()
+
+    var d = self.Xsolve() 
     var alpha = self.linesearch(d)
 
-    self.ladapter.set(self.ladapter.get() + alpha*d)
+    self.ladapter.set(x0 + alpha*d)
     self.stepsize = alpha 
   }
 
@@ -270,12 +274,21 @@ class SQPController is OptimizationController {
   next() {
     var sk = self.get() - self._ox
     var yk = self.ladapter.vargradient() - self._ogradient
-    
+
     self.lbfgs.update(sk, yk)
   }
 }
 
 var control = SQPController(adapt)
-control.optimize(20)
+control.optimize(10)
 
 print control.get() 
+print control.ladapter.lambda 
+
+print "-"
+
+print control.ladapter.gradient()
+
+print "-"
+
+print control.lbfgs._hmul(Matrix([1,0,0]))
