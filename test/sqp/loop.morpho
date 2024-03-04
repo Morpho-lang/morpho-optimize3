@@ -4,7 +4,7 @@ import meshtools
 import optimize3
 import plot 
 
-var m = LineMesh(fn (t) [2*cos(t),sin(t)], -Pi...Pi:Pi/20, closed=true)
+var m = LineMesh(fn (t) [1.2*cos(t),sin(t)], -Pi...Pi:Pi/20, closed=true)
 
 var problem = OptimizationProblem(m)
 
@@ -241,12 +241,12 @@ class SQPController is OptimizationController {
   }
 
   linesearch(dirn) {
-    var padapt = L1PenaltyAdapter(self.adapter, penalty=100)
+    var x0 = self.adapter.get()
+
+    var padapt = L1PenaltyAdapter(self.adapter, penalty=10)
 
     var ndof = self.adapter.get().count() 
     var xdirn = dirn[0...ndof]
-
-    var x0 = self.adapter.get()
 
     var ls = XLineSearchController(padapt)
     ls.setdirection(xdirn)
@@ -260,10 +260,12 @@ class SQPController is OptimizationController {
   }
 
   step() {
+    var x0 = self.ladapter.get()
+
     var d = self.solve() 
     var alpha = self.linesearch(d)
 
-    self.ladapter.set(self.ladapter.get() + alpha*d)
+    self.ladapter.set(x0 + alpha*d)
     self.stepsize = alpha 
   }
 
@@ -283,3 +285,5 @@ control.optimize(100)
 Show(plotmesh(m))
 
 print "Length=${Length().total(m)} Area = ${AreaEnclosed().total(m)}"
+
+print control.adapter.constraintvalue()
