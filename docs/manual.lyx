@@ -1824,7 +1824,7 @@ noprefix "false"
 \Delta\mathbf{x}\\
 \Delta\lambda
 \end{array}\right) & =-\left(\begin{array}{cc}
-\mathcal{H}^{-1}+\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\mathcal{H}^{-1} & -\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\\
+\mathcal{H}^{-1}+\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\mathbf{C}^{T}\mathcal{H}^{-1} & -\mathcal{H}^{-1}\mathbf{C}\mathbf{S}^{-1}\\
 -\mathbf{S}^{-1}\mathbf{C}^{T}\mathcal{H}^{-1} & \mathbf{S}^{-1}
 \end{array}\right)\left(\begin{array}{c}
 \mathbf{g}\\
