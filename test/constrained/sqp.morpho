@@ -276,7 +276,8 @@ class SQPController is OptimizationController {
 
   begin() {
     self._ox = self.get() 
-    self._ogradient = self.ladapter.vargradient() 
+    //self._ogradient = self.ladapter.vargradient() 
+    self._ogradient = self.adapter.gradient()
   }
 
   solve() {
@@ -365,7 +366,7 @@ class SQPController is OptimizationController {
   step() {
     var x0 = self.ladapter.get()
 
-    var d = self.Zsolve() 
+    var d = self.Xsolve() 
     var alpha = self.linesearch(d)
 
     self.ladapter.set(x0 + alpha*d)
@@ -376,16 +377,17 @@ class SQPController is OptimizationController {
 
   next() {
     var sk = self.get() - self._ox
-    var yk = self.ladapter.vargradient() - self._ogradient
+    var yk = self.adapter.gradient() - self._ogradient
+    //var yk = self.ladapter.vargradient() - self._ogradient
 
-    //self.bfgs.update(sk, yk)
-    //self.lbfgs.update(sk, yk)
+    self.bfgs.update(sk, yk)
+    self.lbfgs.update(sk, yk)
     self.ibfgs.update(sk, yk)
   }
 }
 
 var control = SQPController(adapt)
-control.optimize(10)
+control.optimize(15)
 
 print control.get() 
 print control.ladapter.lambda 
@@ -394,6 +396,3 @@ print "-"
 
 print control.ladapter.gradient()
 
-print "-"
-
-print control.ibfgs.B
