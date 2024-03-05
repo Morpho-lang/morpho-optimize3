@@ -1,20 +1,38 @@
-// Simple loop minimization problem solved with SQP
+// Thomson problem demonstrating local equality constraints
 
 import meshtools 
 import optimize3
+import functionals
 import plot 
 
-var m = LineMesh(fn (t) [2*cos(t),sin(t)], -Pi...Pi:Pi/20, closed=true)
+var Np = 200 // Number of particles
 
-var problem = OptimizationProblem(m)
+var L = 100
 
-var ll = Length() 
-problem.addenergy(ll)
+// Create the mesh, which consists of Np random points each representing
+// a charge on the unit sphere.
+var build = MeshBuilder()
+for (i in 1..Np) {
+  var x = Matrix([2*random()-1, 2*random()-1, 2*random()-1])
+  x/=x.norm() // Project onto unit sphere
+  build.addvertex(x)
+}
+var mesh = build.build() // Tell the MeshBuilder to build the mesh
 
-var la = AreaEnclosed() 
-problem.addconstraint(la)
+// Specify the problem
+var problem = OptimizationProblem(mesh)
 
-var adapt = MeshAdapter(problem, m)
+var lv = PairwisePotential(fn (r) 1/r, fn (r) -1/r^2)
+problem.addenergy(lv)
+
+var lback = ScalarPotential(fn (x,y,z) x^2+y^2+z^2)
+problem.addenergy(lback, prefactor=L)
+
+var lsph = ScalarPotential(fn (x,y,z) x^2+y^2+z^2-1)
+problem.addlocalconstraint(lsph)
+
+var adapt = MeshAdapter(problem, mesh) 
+
 
 var _OptUnConsErr = Error("OpUncons", "Problem appears to be unconstrained.")
 var _OptLnSrchDrn = Error("OptLnSrchDrn", "Linesearch encountered an upward direction.")
@@ -39,7 +57,14 @@ class L1PenaltyAdapter is DelegateAdapter {
 
   constraintvector() {
     var v = self.adapter.constraintvalue()
-    return Matrix(v)
+
+    var l = []
+    for (c in v) {
+      if (ismatrix(c)) for (x in c) l.append(x)
+      else l.append(c)
+    }
+
+    return Matrix(l)
   }
 
   value() { //  f + lambda_i c_i
@@ -94,12 +119,13 @@ class LagrangeMultiplierAdapter is OptimizationAdapter {
   constraintvector() {
     var v = self.adapter.constraintvalue()
 
-    if (v) {
-      v = Matrix(v)
-      self._checkineq(v)
-    } else _OptUnConsErr.warning() 
+    var l = []
+    for (c in v) {
+      if (ismatrix(c)) for (x in c) l.append(x)
+      else l.append(c)
+    }
 
-    return v 
+    return Matrix(l)
   }
 
   value() { // Lagrangian = f + lambda_i c_i
@@ -112,7 +138,11 @@ class LagrangeMultiplierAdapter is OptimizationAdapter {
   vargradient() { // Gradient of lagrangian wrt original degrees of freedom
     var grad = self.adapter.gradient()
     var cgrad = self.adapter.constraintgradient()
-    for (cg,k in cgrad) grad += self.lambda[k]*cg
+    var xcg = Matrix([cgrad])
+
+    grad += xcg*self.lambda 
+    //@
+    //for (cg,k in cgrad) grad += self.lambda[k]*cg
 
     return grad 
   }
@@ -374,13 +404,13 @@ class SQPController is OptimizationController {
     var x0 = self.ladapter.get()
     var ndof = self.adapter.get().count()
 
-    var d = self.solve()
+    var d = self.Ysolve()
     var alpha = self.linesearch(d)
 
-    //var dl = d.clone() 
-    //for (i in 0...ndof) dl[i]=0
-    //self.ladapter.set(x0 + alpha*dl)
-    //self._ogradient = self.ladapter.vargradient() 
+    var dl = d.clone() 
+    for (i in 0...ndof) dl[i]=0
+    self.ladapter.set(x0 + alpha*dl)
+    self._ogradient = self.ladapter.vargradient() 
 
     self.ladapter.set(x0 + alpha*d)
 
@@ -393,8 +423,8 @@ class SQPController is OptimizationController {
     // Crucially, yk = grad L(x+alpha d, lambda k+1)-grad L(x, lambda k+1)
     // i.e. holding lambda constant
     var sk = self.get() - self._ox
-    var yk = self.adapter.gradient() - self._ogradient
-    //var yk = self.ladapter.vargradient() - self._ogradient
+    //var yk = self.adapter.gradient() - self._ogradient
+    var yk = self.ladapter.vargradient() - self._ogradient
 
     self.bfgs.update(sk, yk)
     self.lbfgs.update(sk, yk)
@@ -403,12 +433,12 @@ class SQPController is OptimizationController {
 }
 
 var control = SQPController(adapt)
-control.optimize(100)
+control.optimize(1000)
 
-Show(plotmesh(m))
+print adapt.value() - L*lback.total(mesh)
 
-print "Length=${Length().total(m)} Area = ${AreaEnclosed().total(m)}"
-
-print control.adapter.constraintvalue()
-
-print control.ladapter.lagrangemultipliers()
+var g = Graphics()
+for (i in 0...mesh.count()) {
+  g.display(Sphere(mesh.vertexposition(i),1/sqrt(Np)))
+}
+Show(g) 
