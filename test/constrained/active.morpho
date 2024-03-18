@@ -1,0 +1,118 @@
+// Test PenaltyAdapter and PenaltyController 
+
+import meshtools 
+import optimize3
+
+// Build mesh 
+var m = LineMesh(fn (u) [cos(u), sin(u)], -Pi...Pi:Pi/6, closed=true) 
+
+// Set up a demo problem 
+var problem = OptimizationProblem(m)
+problem.addenergy(Length())
+problem.addconstraint(AreaEnclosed())
+
+var L = 0.5
+var lsupper = ScalarPotential(fn (x,y) L-y)
+var lslower = ScalarPotential(fn (x,y) y+L)
+problem.addlocalconstraint(lsupper, onesided=true)
+problem.addlocalconstraint(lslower, onesided=true)
+
+// Test the MeshAdapter 
+var adapt = MeshAdapter(problem, m)
+
+class ActiveSetAdapter is DelegateAdapter {
+  init(adapter) {
+    super.init(adapter)
+    self.active = nil 
+  }
+
+  _processeq(v, l) {
+    if (ismatrix(v)) for (x in v) l.append(x)
+    else l.append(v)
+  }
+
+  _processineq(v, l, a) {
+    if (ismatrix(v)) {
+      var active = []
+      for (x, k in v) {
+        if (x>0) continue
+        l.append(x)
+        active.append(k)
+      }
+      a.append(active)
+    } else {
+      if (v>0) {
+        a.append(false)
+      } else {
+        l.append(v)
+        a.append(true)
+      } 
+    }
+  }
+
+  constraintvector() {
+    var ncons = self.countconstraints()
+    var val = self.constraintvalue()
+
+    var l = [], a = []
+    for (k in 0...ncons[0]) self._processeq(val[k], l)
+    for (k in ncons[0]...val.count()) self._processineq(val[k], l, a)
+
+    self.setactive(a)
+
+    return Matrix(l)
+  }
+
+  setactive(active) {
+    self.active = active
+  }
+
+  active() {
+    return self.active 
+  }
+
+}
+
+class XActiveSetAdapter is DelegateAdapter {
+  init(adapter) {
+    super.init(adapter)
+    self.active = nil 
+  }
+
+  _activeineq(v) { // Checks whether ineq. constraints are active
+    if (ismatrix(v)) { // If a matrix ...
+      var active = []
+      for (x, k in v) { // Create a list with the indices of the active constraints
+        if (x<=0) active.append(k)
+      }
+      return active 
+    } else if (v<=0) { 
+      return true
+    } 
+    return false
+  }
+
+  active() {
+    var ncons = self.countconstraints()
+    var val = self.constraintvalue()
+    var active = []
+
+    for (v, k in val) {
+      if (k<ncons[0]) active.append(true)
+      else active.append(self._activeineq(v))
+    } 
+
+    return active 
+  }
+
+}
+
+var aadapt = XActiveSetAdapter(adapt)
+
+for (a in aadapt.active()) {
+  print a 
+}
+
+//print aadapt.constraintvector()
+//for (i in aadapt.active()) print i 
+//print aadapt.constraintvalue()
